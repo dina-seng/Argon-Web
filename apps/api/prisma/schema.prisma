@@ -1,0 +1,166 @@
+// Argon – Prisma Schema
+// Database: PostgreSQL 16
+// ORM: Prisma 5
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  CUSTOMER
+  ORGANIZER
+  ADMIN
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+enum BookingStatus {
+  PENDING
+  PAID
+  EXPIRED
+  CANCELLED
+  REFUNDED
+}
+
+enum TicketStatus {
+  ACTIVE
+  CHECKED_IN
+  REVOKED
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // bcrypt hash
+  name      String
+  role      Role     @default(CUSTOMER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events    Event[]    @relation("OrganizerEvents")
+  bookings  Booking[]
+  checkins  Ticket[]   @relation("CheckedInBy")
+  auditLogs AuditLog[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model Event {
+  id          String      @id @default(uuid())
+  organizerId String
+  title       String
+  description String
+  venue       String
+  startsAt    DateTime
+  status      EventStatus @default(DRAFT)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  organizer User         @relation("OrganizerEvents", fields: [organizerId], references: [id])
+  tiers     TicketTier[]
+  bookings  Booking[]
+
+  @@index([organizerId])
+  @@index([status])
+  @@index([startsAt])
+}
+
+model TicketTier {
+  id            String   @id @default(uuid())
+  eventId       String
+  name          String
+  price         Decimal  @db.Decimal(10, 2)
+  capacity      Int
+  soldCount     Int      @default(0)
+  reservedCount Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  // DB-level guard: prevents overselling
+  // soldCount + reservedCount <= capacity
+  @@index([eventId])
+}
+
+model Booking {
+  id                   String        @id @default(uuid())
+  userId               String
+  eventId              String
+  tierId               String
+  status               BookingStatus @default(PENDING)
+  quantity             Int
+  expiresAt            DateTime?
+  paymentReference     String?       @unique
+  gatewayTransactionId String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  user    User       @relation(fields: [userId], references: [id])
+  event   Event      @relation(fields: [eventId], references: [id])
+  tier    TicketTier @relation(fields: [tierId], references: [id])
+  tickets Ticket[]
+
+  @@index([userId])
+  @@index([eventId])
+  @@index([tierId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([status, expiresAt]) // composite for sweeper query
+}
+
+model Ticket {
+  id          String       @id @default(uuid())
+  bookingId   String
+  eventId     String
+  status      TicketStatus @default(ACTIVE)
+  qrToken     String       @unique
+  checkedInAt DateTime?
+  checkedInBy String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  booking      Booking @relation(fields: [bookingId], references: [id])
+  checkedInByUser User? @relation("CheckedInBy", fields: [checkedInBy], references: [id])
+
+  @@index([bookingId])
+  @@index([eventId])
+  @@index([status])
+  @@index([qrToken]) // fast lookup for scan endpoint
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String
+  action    String   // e.g. "BOOKING_CREATED", "TICKET_CHECKED_IN"
+  entity    String   // e.g. "Booking", "Ticket"
+  entityId  String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
