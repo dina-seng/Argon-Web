@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main, develop]
   push:
-    branches: [main]
+    branches: [main, develop]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -33,6 +33,8 @@ jobs:
           node-version: "20"
           cache: "npm"
       - run: npm ci
+      - run: npm run prisma:generate --workspace=apps/api
+      - run: npm run build --workspace=packages/shared
       - run: npm run typecheck
 
   test:
@@ -48,7 +50,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U argon -d argon_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -62,12 +64,13 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql://argon:argon_test_secret@localhost:5432/argon_test
-      REDIS_URL: redis://localhost:6379
-      JWT_SECRET: ci_test_jwt_secret_not_real
+      NODE_ENV: test
+      DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://argon:argon_test_secret@localhost:5432/argon_test' }}
+      REDIS_URL: ${{ secrets.REDIS_URL || 'redis://localhost:6379' }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci_test_jwt_secret_not_real_must_be_32_chars_min' }}
       JWT_EXPIRES_IN: 1h
-      QR_SIGNING_SECRET: ci_test_qr_secret_not_real
-      PAYMENT_WEBHOOK_SECRET: ci_test_webhook_secret
+      QR_SIGNING_SECRET: ${{ secrets.QR_SIGNING_SECRET || 'ci_test_qr_secret_not_real_must_be_32_chars_min' }}
+      PAYMENT_WEBHOOK_SECRET: ${{ secrets.PAYMENT_WEBHOOK_SECRET || 'argon_webhook_secret_dev' }}
       CLIENT_URL: http://localhost:5173
       SCANNER_URL: http://localhost:5174
       PAYMENT_GATEWAY_BASE_URL: https://sandbox.payment-gateway.example.com
@@ -92,4 +95,5 @@ jobs:
           node-version: "20"
           cache: "npm"
       - run: npm ci
+      - run: npm run prisma:generate --workspace=apps/api
       - run: npm run build
