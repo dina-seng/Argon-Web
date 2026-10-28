@@ -53,6 +53,7 @@ export async function buildApp() {
   await app.register(ticketsRoutes, { prefix: '/tickets' });
   await app.register(checkinRoutes, { prefix: '/checkin' });
   await app.register(organizerRoutes, { prefix: '/organizer' });
+  await app.register(organizerRoutes, { prefix: '/api/v1/organizer' });
   await app.register(auditRoutes, { prefix: '/audit' });
   await app.register(adminRoutes, { prefix: '/api/v1/admin' });
 
