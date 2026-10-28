@@ -52,3 +52,7 @@ coverage/
 
 # Vite cache
 .vite/
+
+# Git worktrees
+.worktrees/
+.worktree/
