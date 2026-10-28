@@ -8,6 +8,7 @@ import fastifyJwt from '@fastify/jwt';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { env } from '../config/env';
 import type { JwtPayload } from '@argon/shared';
+import type { Role } from '@prisma/client';
 
 declare module '@fastify/jwt' {
   interface FastifyJWT {
@@ -19,6 +20,7 @@ declare module '@fastify/jwt' {
 declare module 'fastify' {
   interface FastifyInstance {
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+    authorize: (allowedRoles: Role[]) => (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
   }
 }
 

@@ -8,6 +8,7 @@ import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod
 import { prismaPlugin } from './plugins/prisma';
 import { redisPlugin } from './plugins/redis';
 import { jwtPlugin } from './plugins/jwt';
+import { authorizePlugin } from './plugins/authorize';
 import { rateLimitPlugin } from './plugins/rateLimit';
 import { corsPlugin } from './plugins/cors';
 import { errorHandlerPlugin } from './plugins/errorHandler';
@@ -37,6 +38,7 @@ export async function buildApp() {
   await app.register(prismaPlugin);
   await app.register(redisPlugin);
   await app.register(jwtPlugin);
+  await app.register(authorizePlugin);
   await app.register(auditLogPlugin);
 
   // ── Health check ──────────────────────────────────────────────────────────
