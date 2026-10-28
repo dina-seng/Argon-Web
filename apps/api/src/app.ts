@@ -22,6 +22,7 @@ import { ticketsRoutes } from './modules/tickets/routes';
 import { checkinRoutes } from './modules/checkin/routes';
 import { organizerRoutes } from './modules/organizer/routes';
 import { auditRoutes } from './modules/audit/routes';
+import { adminRoutes } from './modules/admin/routes';
 
 export async function buildApp() {
   const app = Fastify({
@@ -53,6 +54,7 @@ export async function buildApp() {
   await app.register(checkinRoutes, { prefix: '/checkin' });
   await app.register(organizerRoutes, { prefix: '/organizer' });
   await app.register(auditRoutes, { prefix: '/audit' });
+  await app.register(adminRoutes, { prefix: '/api/v1/admin' });
 
   return app;
 }
