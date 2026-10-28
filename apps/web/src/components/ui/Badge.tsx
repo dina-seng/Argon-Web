@@ -1,4 +1,4 @@
-export type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'default';
+export type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'default' | 'green' | 'blue';
 
 export interface BadgeProps {
   label: string;
@@ -8,9 +8,11 @@ export interface BadgeProps {
 
 const variantStyles: Record<BadgeVariant, string> = {
   success: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  green: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
   warning: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
   error: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
   info: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
+  blue: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
   default: 'bg-slate-700/40 text-slate-300 border-slate-600/30',
 };
 

@@ -1,7 +1,10 @@
 /**
  * features/organizer/DashboardPage.tsx
- * TODO: Display sales metrics, recent bookings, event list. ORGANIZER role required.
+ * Real-time Organizer sales metrics, tier quota, and gate throughput dashboard.
  */
+import { OrganizerDashboardView } from './OrganizerDashboardView';
+
 export default function OrganizerDashboardPage() {
-  return <div>OrganizerDashboardPage – TODO</div>;
+  return <OrganizerDashboardView />;
 }
+
