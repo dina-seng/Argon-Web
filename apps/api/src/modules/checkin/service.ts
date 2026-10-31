@@ -30,7 +30,7 @@ export async function scanTicket(
   // 1. Verify HMAC token signature if secret signing is active
   try {
     verifyQrToken(qrToken, env.QR_SIGNING_SECRET);
-  } catch (err) {
+  } catch {
     // If token verification fails, also check if it's stored directly
   }
 
