@@ -3,7 +3,7 @@
  * Adds the current tab's Bearer token and clears expired sessions on 401.
  */
 import axios, { type AxiosError } from 'axios';
-import { clearToken, getToken } from './auth';
+import { clearAccessToken, clearToken, getToken } from './auth';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
 const client = axios.create({ baseURL: BASE_URL, headers: { Accept: 'application/json' } });
@@ -17,7 +17,10 @@ client.interceptors.request.use((config) => {
 client.interceptors.response.use(
   (response) => response,
   (error: AxiosError<{ message?: string }>) => {
-    if (error.response?.status === 401) clearToken();
+    if (error.response?.status === 401) {
+      if (error.config?.url === '/auth/refresh') clearToken();
+      else clearAccessToken();
+    }
     if (error.response) {
       const status = error.response.status;
       const message = error.response.data?.message;

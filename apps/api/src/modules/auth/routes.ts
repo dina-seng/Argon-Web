@@ -4,8 +4,8 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import { registerController, loginController } from './controller';
-import { registerSchema, loginSchema } from './schema';
+import { registerController, loginController, refreshController, logoutController } from './controller';
+import { registerSchema, loginSchema, refreshSchema, logoutSchema } from './schema';
 
 export async function authRoutes(app: FastifyInstance) {
   app.post('/register', {
@@ -17,5 +17,17 @@ export async function authRoutes(app: FastifyInstance) {
     config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
     schema: { body: loginSchema },
     handler: loginController,
+  });
+
+  app.post('/refresh', {
+    config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
+    schema: { body: refreshSchema },
+    handler: refreshController,
+  });
+
+  app.post('/logout', {
+    config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
+    schema: { body: logoutSchema },
+    handler: logoutController,
   });
 }

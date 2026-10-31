@@ -1,6 +1,6 @@
 /**
  * plugins/jwt.ts – Registers @fastify/jwt for JWT auth.
- * TODO: Add token refresh endpoint and blacklist via Redis on logout.
+ * JWT verification with Redis-backed logout revocation.
  */
 
 import fp from 'fastify-plugin';
@@ -8,6 +8,7 @@ import fastifyJwt from '@fastify/jwt';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { env } from '../config/env';
 import type { JwtPayload } from '@argon/shared';
+import { isAccessTokenRevoked } from '../modules/auth/service';
 
 declare module '@fastify/jwt' {
   interface FastifyJWT {
@@ -32,6 +33,13 @@ export const jwtPlugin = fp(async (app) => {
     try {
       await request.jwtVerify();
     } catch {
+      reply.status(401).send({ statusCode: 401, error: 'Unauthorized', message: 'Invalid or expired token' });
+      return;
+    }
+
+    const authorization = request.headers.authorization;
+    const accessToken = authorization?.startsWith('Bearer ') ? authorization.slice(7) : undefined;
+    if (accessToken && await isAccessTokenRevoked(app, accessToken)) {
       reply.status(401).send({ statusCode: 401, error: 'Unauthorized', message: 'Invalid or expired token' });
     }
   });

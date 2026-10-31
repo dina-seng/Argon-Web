@@ -27,8 +27,12 @@ export const loginSchema = z.object({
 
 export const tokenResponseSchema = z.object({
   token: z.string(),
+  refreshToken: z.string(),
   expiresIn: z.string(),
 });
+
+export const refreshSchema = z.object({ refreshToken: z.string().min(1) });
+export const logoutSchema = z.object({ refreshToken: z.string().min(1).optional() });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

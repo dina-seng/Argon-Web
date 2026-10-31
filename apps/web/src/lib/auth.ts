@@ -5,13 +5,14 @@
  */
 
 const TOKEN_KEY = 'argon_token';
+const REFRESH_TOKEN_KEY = 'argon_refresh_token';
 
 export function getToken(): string | null {
   const token = sessionStorage.getItem(TOKEN_KEY);
   if (!token) return null;
   const expiresAt = getTokenExpiry(token);
   if (expiresAt === null || expiresAt <= Date.now()) {
-    clearToken();
+    clearAccessToken();
     return null;
   }
   return token;
@@ -42,8 +43,24 @@ export function setToken(token: string): void {
   notifyAuthChange();
 }
 
+export function setSessionTokens(token: string, refreshToken: string): void {
+  sessionStorage.setItem(TOKEN_KEY, token);
+  sessionStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  notifyAuthChange();
+}
+
+export function getRefreshToken(): string | null {
+  return sessionStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+export function clearAccessToken(): void {
+  sessionStorage.removeItem(TOKEN_KEY);
+  notifyAuthChange();
+}
+
 export function clearToken(): void {
   sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(REFRESH_TOKEN_KEY);
   notifyAuthChange();
 }
 

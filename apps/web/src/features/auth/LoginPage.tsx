@@ -87,7 +87,7 @@ export default function LoginPage() {
     try {
       const signedInUser = await login(email.trim(), password);
       const role = signedInUser.role;
-      navigate(from && role !== 'ORGANIZER' && role !== 'ADMIN' ? from : homeForRole(role), { replace: true });
+      navigate(from ?? homeForRole(role), { replace: true });
     } catch (err) {
       setFormError(messageFor(err));
       setPassword('');
