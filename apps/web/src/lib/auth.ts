@@ -39,8 +39,14 @@ export function getTokenExpiry(token: string): number | null {
 
 export function setToken(token: string): void {
   sessionStorage.setItem(TOKEN_KEY, token);
+  notifyAuthChange();
 }
 
 export function clearToken(): void {
   sessionStorage.removeItem(TOKEN_KEY);
+  notifyAuthChange();
+}
+
+function notifyAuthChange(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('argon:auth-change'));
 }

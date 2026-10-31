@@ -7,15 +7,9 @@ import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { AuthFrame } from './AuthFrame';
-import { api } from '../../lib/api';
-import { getToken, setToken } from '../../lib/auth';
+import { useAuth } from '../../hooks/useAuth';
 
 type SelectableRole = 'CUSTOMER' | 'ORGANIZER';
-
-interface TokenResponse {
-  token: string;
-  expiresIn: string;
-}
 
 interface FieldErrors {
   name?: string;
@@ -52,6 +46,7 @@ const inputClass = (invalid: boolean) =>
   ].join(' ');
 
 export default function RegisterPage() {
+  const { user: currentUser, isLoading, register } = useAuth();
   const navigate = useNavigate();
 
   const [name, setName] = useState('');
@@ -65,7 +60,8 @@ export default function RegisterPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // Already signed in → no need to register again.
-  if (getToken()) return <Navigate to="/" replace />;
+  if (isLoading) return <p className="p-8 text-center text-sm text-gray-500">Checking your session…</p>;
+  if (currentUser) return <Navigate to={currentUser.role === 'ORGANIZER' ? '/organizer' : currentUser.role === 'ADMIN' ? '/admin' : '/'} replace />;
 
   function validate(): FieldErrors {
     const next: FieldErrors = {};
@@ -95,15 +91,14 @@ export default function RegisterPage() {
 
     setSubmitting(true);
     try {
-      const { token } = await api.post<TokenResponse>('/auth/register', {
+      const createdUser = await register({
         name: name.trim(),
         email: email.trim(),
         password,
         confirmPassword,
         role,
       });
-      setToken(token);
-      navigate(role === 'ORGANIZER' ? '/organizer' : '/', { replace: true });
+      navigate(createdUser.role === 'ORGANIZER' ? '/organizer' : '/', { replace: true });
     } catch (err) {
       const status = statusOf(err);
       if (status === 409) {

@@ -5,16 +5,9 @@
 
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import type { JwtPayload } from '@argon/shared';
 import { Button } from '../../components/ui/Button';
 import { AuthFrame } from './AuthFrame';
-import { api } from '../../lib/api';
-import { getToken, setToken } from '../../lib/auth';
-
-interface TokenResponse {
-  token: string;
-  expiresIn: string;
-}
+import { useAuth } from '../../hooks/useAuth';
 
 interface FieldErrors {
   email?: string;
@@ -22,19 +15,6 @@ interface FieldErrors {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-/** Reads the payload of a JWT for routing/UI only – the server remains the authority. */
-function decodeToken(token: string): JwtPayload | null {
-  try {
-    const part = token.split('.')[1];
-    if (!part) return null;
-    const base64 = part.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
-    return JSON.parse(atob(padded)) as JwtPayload;
-  } catch {
-    return null;
-  }
-}
 
 function homeForRole(role: string | undefined): string {
   switch (role) {
@@ -65,6 +45,7 @@ const inputClass = (invalid: boolean) =>
   ].join(' ');
 
 export default function LoginPage() {
+  const { user, isLoading, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
@@ -78,10 +59,8 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // Already signed in → go home instead of showing the form.
-  const existing = getToken();
-  if (existing) {
-    return <Navigate to={homeForRole(decodeToken(existing)?.role)} replace />;
-  }
+  if (isLoading) return <p className="p-8 text-center text-sm text-gray-500">Checking your session…</p>;
+  if (user) return <Navigate to={homeForRole(user.role)} replace />;
 
   function validate(): FieldErrors {
     const next: FieldErrors = {};
@@ -106,9 +85,8 @@ export default function LoginPage() {
 
     setSubmitting(true);
     try {
-      const { token } = await api.post<TokenResponse>('/auth/login', { email: email.trim(), password });
-      setToken(token);
-      const role = decodeToken(token)?.role;
+      const signedInUser = await login(email.trim(), password);
+      const role = signedInUser.role;
       navigate(from && role !== 'ORGANIZER' && role !== 'ADMIN' ? from : homeForRole(role), { replace: true });
     } catch (err) {
       setFormError(messageFor(err));
