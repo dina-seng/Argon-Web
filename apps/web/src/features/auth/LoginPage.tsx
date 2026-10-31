@@ -68,6 +68,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+  const sessionExpired = (location.state as { sessionExpired?: boolean } | null)?.sessionExpired ?? false;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -125,6 +126,11 @@ export default function LoginPage() {
       footer={<>New to Argon? <Link to="/register" className="font-semibold text-[#815a31] hover:text-[#5f4021]">Create an account</Link></>}
     >
           <form onSubmit={handleSubmit} noValidate className="space-y-5">
+            {sessionExpired && (
+              <div role="status" className="rounded-xl border border-[#e7d6b7] bg-[#fbf6ee] px-4 py-3 text-sm text-[#684b2c]">
+                Your session expired. Sign in again to continue.
+              </div>
+            )}
             {formError && (
               <div
                 role="alert"

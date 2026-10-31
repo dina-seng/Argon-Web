@@ -1,5 +1,6 @@
 import { BrowserRouter } from 'react-router-dom';
 import AppRoutes from './routes';
+import { SessionExpiryWatcher } from './features/auth/SessionExpiryWatcher';
 
 /**
  * App – root component.
@@ -9,6 +10,7 @@ import AppRoutes from './routes';
 export default function App() {
   return (
     <BrowserRouter>
+      <SessionExpiryWatcher />
       <AppRoutes />
     </BrowserRouter>
   );
