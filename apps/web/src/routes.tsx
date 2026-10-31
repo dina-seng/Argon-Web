@@ -1,4 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import LoginPage from './features/auth/LoginPage';
+import RegisterPage from './features/auth/RegisterPage';
 
 /**
  * routes.tsx – Role-gated route definitions.
@@ -25,8 +27,8 @@ export default function AppRoutes() {
     <Routes>
       {/* Public */}
       <Route path="/" element={<PlaceholderPage name="Discover Events" />} />
-      <Route path="/login" element={<PlaceholderPage name="Login" />} />
-      <Route path="/register" element={<PlaceholderPage name="Register" />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
       <Route path="/events/:id" element={<PlaceholderPage name="Event Detail" />} />
 
       {/* CUSTOMER */}
