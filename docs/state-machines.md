@@ -68,6 +68,20 @@
 
 ---
 
+## Event State Machine
+
+| From | To | Trigger | Notes |
+|------|----|---------|-------|
+| DRAFT | PUBLISHED | Organizer publishes | Only if `startsAt` is in the future |
+| DRAFT | CANCELLED | Organizer cancels | |
+| PUBLISHED | CANCELLED | Organizer cancels | TODO: notify/refund existing bookings |
+| PUBLISHED | COMPLETED | Event date passes | TODO: not automated yet |
+
+Only `DRAFT` and `PUBLISHED` events can be edited. `CANCELLED` and `COMPLETED` are **terminal**.
+Events are never deleted (bookings reference them) — cancel instead.
+
+---
+
 ## Implementation Notes
 
 - All state transitions MUST use `prisma.$transaction` to prevent race conditions.
