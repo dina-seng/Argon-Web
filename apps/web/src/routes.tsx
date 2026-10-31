@@ -1,4 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { OrganizerLayout } from './components/layout/OrganizerLayout';
+import { PublicLayout } from './components/layout/PublicLayout';
+import EventCatalogPage from './features/discovery/EventCatalogPage';
+import EventDetailPage from './features/discovery/EventDetailPage';
+import DashboardPage from './features/organizer/DashboardPage';
+import EventFormPage from './features/organizer/EventFormPage';
 
 /**
  * routes.tsx – Role-gated route definitions.
@@ -24,10 +30,12 @@ export default function AppRoutes() {
   return (
     <Routes>
       {/* Public */}
-      <Route path="/" element={<PlaceholderPage name="Discover Events" />} />
+      <Route element={<PublicLayout />}>
+        <Route path="/" element={<EventCatalogPage />} />
+        <Route path="/events/:id" element={<EventDetailPage />} />
+      </Route>
       <Route path="/login" element={<PlaceholderPage name="Login" />} />
       <Route path="/register" element={<PlaceholderPage name="Register" />} />
-      <Route path="/events/:id" element={<PlaceholderPage name="Event Detail" />} />
 
       {/* CUSTOMER */}
       <Route path="/checkout/:tierId" element={<PlaceholderPage name="Checkout" />} />
@@ -36,11 +44,13 @@ export default function AppRoutes() {
       <Route path="/tickets/:id" element={<PlaceholderPage name="QR Pass" />} />
 
       {/* ORGANIZER */}
-      <Route path="/organizer" element={<PlaceholderPage name="Organizer Dashboard" />} />
-      <Route path="/organizer/events/new" element={<PlaceholderPage name="Create Event" />} />
-      <Route path="/organizer/events/:id" element={<PlaceholderPage name="Edit Event" />} />
-      <Route path="/organizer/events/:id/bookings" element={<PlaceholderPage name="Bookings Table" />} />
-      <Route path="/organizer/staff" element={<PlaceholderPage name="Staff Credentials" />} />
+      <Route path="/organizer" element={<OrganizerLayout />}>
+        <Route index element={<DashboardPage />} />
+        <Route path="events/new" element={<EventFormPage />} />
+        <Route path="events/:id" element={<EventFormPage />} />
+        <Route path="events/:id/bookings" element={<PlaceholderPage name="Bookings Table" />} />
+        <Route path="staff" element={<PlaceholderPage name="Staff Credentials" />} />
+      </Route>
 
       {/* ADMIN */}
       <Route path="/admin" element={<PlaceholderPage name="Admin Dashboard" />} />

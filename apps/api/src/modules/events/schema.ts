@@ -1,4 +1,5 @@
-/** modules/events/schema.ts – TODO: event CRUD Zod schemas */
+/** modules/events/schema.ts – event Zod schemas (bodies come from @argon/shared) */
 import { z } from 'zod';
-export const listEventsQuerySchema = z.object({ page: z.coerce.number().default(1), pageSize: z.coerce.number().default(20), q: z.string().optional() });
-export type ListEventsQuery = z.infer<typeof listEventsQuerySchema>;
+export { createEventSchema, updateEventSchema, updateEventStatusSchema, listEventsQuerySchema } from '@argon/shared';
+export const eventParamsSchema = z.object({ id: z.string().uuid() });
+export type EventParams = z.infer<typeof eventParamsSchema>;
