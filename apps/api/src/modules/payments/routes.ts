@@ -1,6 +1,6 @@
 /** modules/payments/routes.ts */
 import type { FastifyInstance } from 'fastify';
-import { webhookController } from './controller';
+import { webhookController } from './controller.js';
 export async function paymentsRoutes(app: FastifyInstance) {
   // Raw body needed for signature verification – TODO: configure addContentTypeParser
   app.post('/webhook', webhookController);

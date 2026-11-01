@@ -13,7 +13,7 @@ import type {
   UpdateEventInput,
   UpdateEventStatusInput,
 } from '@argon/shared';
-import { conflict, notFound } from '../../lib/httpError';
+import { conflict, notFound } from '../../lib/httpError.js';
 
 /** Tier created from the form's "total ticket capacity". Free until pricing is added to the form. */
 const DEFAULT_TIER_NAME = 'General Admission';

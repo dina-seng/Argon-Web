@@ -1,8 +1,8 @@
 /** modules/events/controller.ts – thin handlers delegating to service */
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { CreateEventInput, ListEventsQuery, UpdateEventInput, UpdateEventStatusInput } from '@argon/shared';
-import type { EventParams } from './schema';
-import { createEvent, getEvent, listEvents, updateEvent, updateEventStatus } from './service';
+import type { EventParams } from './schema.js';
+import { createEvent, getEvent, listEvents, updateEvent, updateEventStatus } from './service.js';
 
 export async function listEventsController(req: FastifyRequest<{ Querystring: ListEventsQuery }>) {
   return listEvents(req.server, req.query);

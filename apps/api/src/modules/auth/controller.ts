@@ -3,8 +3,8 @@
  */
 
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import type { RegisterInput, LoginInput } from './schema';
-import { logoutUser, registerUser, loginUser, refreshUserSession } from './service';
+import type { RegisterInput, LoginInput } from './schema.js';
+import { logoutUser, registerUser, loginUser, refreshUserSession } from './service.js';
 
 export async function registerController(_req: FastifyRequest<{ Body: RegisterInput }>, _reply: FastifyReply): Promise<void> {
   try {

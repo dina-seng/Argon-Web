@@ -6,9 +6,9 @@
 import fp from 'fastify-plugin';
 import fastifyJwt from '@fastify/jwt';
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { env } from '../config/env';
+import { env } from '../config/env.js';
 import type { JwtPayload } from '@argon/shared';
-import { isAccessTokenRevoked } from '../modules/auth/service';
+import { isAccessTokenRevoked } from '../modules/auth/service.js';
 
 declare module '@fastify/jwt' {
   interface FastifyJWT {

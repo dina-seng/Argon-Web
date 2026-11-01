@@ -4,10 +4,10 @@
 
 import { createHash, randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import type { RegisterInput, LoginInput } from './schema';
+import type { RegisterInput, LoginInput } from './schema.js';
 import { Role as SharedRole } from '@argon/shared';
 import bcrypt from 'bcrypt';
-import { env } from '../../config/env';
+import { env } from '../../config/env.js';
 
 const SALT_ROUNDS = 10;
 const REFRESH_TOKEN_TTL_SECONDS = 24 * 60 * 60;
