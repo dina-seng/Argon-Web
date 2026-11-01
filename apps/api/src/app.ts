@@ -5,6 +5,7 @@
 
 import Fastify from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import { prismaPlugin } from './plugins/prisma.js';
 import { redisPlugin } from './plugins/redis.js';
 import { jwtPlugin } from './plugins/jwt.js';
@@ -53,4 +54,13 @@ export async function buildApp() {
   await app.register(auditRoutes, { prefix: '/audit' });
 
   return app;
+}
+
+let vercelApp: ReturnType<typeof buildApp> | undefined;
+
+export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  vercelApp ??= buildApp();
+  const app = await vercelApp;
+  await app.ready();
+  app.routing(req, res);
 }
