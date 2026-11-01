@@ -31,3 +31,12 @@ export enum EventStatus {
   CANCELLED = 'CANCELLED',
   COMPLETED = 'COMPLETED',
 }
+
+export enum EventCategory {
+  MUSIC = 'MUSIC',
+  SPORTS = 'SPORTS',
+  FOOD = 'FOOD',
+  ARTS = 'ARTS',
+  TECH = 'TECH',
+  OTHER = 'OTHER',
+}

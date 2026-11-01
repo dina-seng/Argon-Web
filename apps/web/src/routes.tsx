@@ -1,5 +1,11 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { OrganizerLayout } from './components/layout/OrganizerLayout';
+import { PublicLayout } from './components/layout/PublicLayout';
 import EventCatalogPage from './features/discovery/EventCatalogPage';
+import EventDetailPage from './features/discovery/EventDetailPage';
+import DashboardPage from './features/organizer/DashboardPage';
+import EventFormPage from './features/organizer/EventFormPage';
+
 import CheckoutPage from './features/booking/CheckoutPage';
 import PaymentPage from './features/booking/PaymentPage';
 import MyTicketsPage from './features/tickets/MyTicketsPage';
@@ -50,6 +56,30 @@ export default function AppRoutes() {
       <Route path="/organizer" element={<ScannerPage />} />
       <Route path="/scanner" element={<ScannerPage />} />
       {/* Public */}
+      <Route element={<PublicLayout />}>
+        <Route path="/" element={<EventCatalogPage />} />
+        <Route path="/events/:id" element={<EventDetailPage />} />
+      </Route>
+      <Route path="/login" element={<PlaceholderPage name="Login" />} />
+      <Route path="/register" element={<PlaceholderPage name="Register" />} />
+
+      {/* CUSTOMER */}
+      <Route path="/checkout/:tierId" element={<PlaceholderPage name="Checkout" />} />
+      <Route path="/checkout/:tierId/payment" element={<PlaceholderPage name="Payment" />} />
+      <Route path="/tickets" element={<PlaceholderPage name="My Tickets" />} />
+      <Route path="/tickets/:id" element={<PlaceholderPage name="QR Pass" />} />
+
+      {/* ORGANIZER */}
+      <Route path="/organizer" element={<OrganizerLayout />}>
+        <Route index element={<DashboardPage />} />
+        <Route path="events/new" element={<EventFormPage />} />
+        <Route path="events/:id" element={<EventFormPage />} />
+        <Route path="events/:id/bookings" element={<PlaceholderPage name="Bookings Table" />} />
+        <Route path="staff" element={<PlaceholderPage name="Staff Credentials" />} />
+      </Route>
+
+      {/* ADMIN */}
+      <Route path="/admin" element={<PlaceholderPage name="Admin Dashboard" />} />
       <Route path="/" element={<PlaceholderPage name="Discover Events" />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />

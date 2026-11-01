@@ -2,6 +2,7 @@
   "name": "@argon/shared",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Shared Zod schemas, enums, types, and constants for the Argon monorepo",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
