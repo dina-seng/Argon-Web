@@ -135,7 +135,7 @@ may depend on how the project is configured.
 |---|---|---|---|---|
 | Web | `apps/web` | Vite | `npm run build` | `dist` |
 | Scanner | `apps/scanner` | Vite | `npm run build` | `dist` |
-| API | `apps/api` | Other | `npm run build` | No static output; requires a Vercel Function entry point |
+| API | Repository root (`.`) | Other | `npm run build:api` | No static output; requires a Vercel Function entry point |
 
 For the web and scanner projects:
 
@@ -148,9 +148,12 @@ For the web and scanner projects:
   client-side routes returns the app's `index.html`.
 - Do not configure a custom server start command for the static frontends.
 
-For the API project, a normal `npm run build` only compiles TypeScript. It does
-not create the Vercel Function handlers required to route HTTP requests. Finish
-and test that serverless integration before treating the API as deployed.
+For the API project, keep the repository root as the project root so npm can
+resolve the `@argon/shared` workspace. `npm run build:api` runs the API
+workspace's `prebuild` step, which builds `@argon/shared` and generates the
+Prisma client before compiling the API. This compiles the API but does not
+create the Vercel Function handlers required to route HTTP requests. Finish and
+test that serverless integration before treating the API as deployed.
 
 ### Step 3: Configure environment variables
 
