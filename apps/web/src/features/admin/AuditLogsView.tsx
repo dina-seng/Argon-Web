@@ -30,131 +30,22 @@ export interface PaginatedAuditLogsResponse {
   totalPages: number;
 }
 
-export const FALLBACK_AUDIT_LOGS: AuditLogItem[] = [
-  {
-    id: 'log-001',
-    actorId: 'usr-admin-root',
-    actor: {
-      id: 'usr-admin-root',
-      email: 'admin@argon.events',
-      name: 'Sophea Root',
-      role: 'ADMIN',
-    },
-    action: 'BOOKING_FORCE_CONFIRMED',
-    entity: 'Booking',
-    entityId: 'b8a1c902-7491-4123-9c88-102938475610',
-    metadata: {
-      reason: 'Admin manual resolution for dropped Bakong webhook',
-      previousStatus: 'PENDING',
-      newStatus: 'PAID',
-      ticketsCreated: 1,
-      tierId: 'tier-vip',
-      khqrRef: 'KHQR_MD5_9a8f7c6e5d4b3a21',
-      settlementAmountUsd: 75.0,
-    },
-    createdAt: '2026-10-28T07:00:15.000Z',
-  },
-  {
-    id: 'log-002',
-    actorId: 'usr-admin-root',
-    actor: {
-      id: 'usr-admin-root',
-      email: 'admin@argon.events',
-      name: 'Sophea Root',
-      role: 'ADMIN',
-    },
-    action: 'USER_ROLE_PROMOTED',
-    entity: 'User',
-    entityId: 'usr-cadt-organizer',
-    metadata: {
-      previousRole: 'CUSTOMER',
-      newRole: 'ORGANIZER',
-      reason: 'Approved CADT hackathon coordinator application',
-      promotedBy: 'admin@argon.events',
-    },
-    createdAt: '2026-10-28T06:42:00.000Z',
-  },
-  {
-    id: 'log-003',
-    actorId: 'usr-barcamp-org',
-    actor: {
-      id: 'usr-barcamp-org',
-      email: 'organizer@barcamp.asia',
-      name: 'Chantha Sok',
-      role: 'ORGANIZER',
-    },
-    action: 'TIER_QUOTA_MODIFIED',
-    entity: 'TicketTier',
-    entityId: 'tier-early-bird',
-    metadata: {
-      tierName: 'Early Bird Pass',
-      previousCapacity: 100,
-      newCapacity: 150,
-      eventId: 'b8c1a9f0-4281-4357-9d22-108191283901',
-      delta: 50,
-    },
-    createdAt: '2026-10-28T05:15:30.000Z',
-  },
-  {
-    id: 'log-004',
-    actorId: 'usr-admin-root',
-    actor: {
-      id: 'usr-admin-root',
-      email: 'admin@argon.events',
-      name: 'Sophea Root',
-      role: 'ADMIN',
-    },
-    action: 'BOOKING_REFUNDED',
-    entity: 'Booking',
-    entityId: 'f2e5a346-1835-8567-d022-546372819054',
-    metadata: {
-      reason: 'Disputed charge settlement via customer service',
-      refundAmount: 75.0,
-      revokedTicketsCount: 1,
-      ticketIds: ['argon_tkt_rev_91823'],
-      restoredTierCapacity: 1,
-    },
-    createdAt: '2026-10-27T16:21:00.000Z',
-  },
-  {
-    id: 'log-005',
-    actorId: 'usr-admin-root',
-    actor: {
-      id: 'usr-admin-root',
-      email: 'admin@argon.events',
-      name: 'Sophea Root',
-      role: 'ADMIN',
-    },
-    action: 'USER_ROLE_UPDATED',
-    entity: 'User',
-    entityId: 'usr-customer-3',
-    metadata: {
-      previousRole: 'ORGANIZER',
-      newRole: 'CUSTOMER',
-      reason: 'Seasonal access expiry',
-    },
-    createdAt: '2026-10-26T12:00:00.000Z',
-  },
-];
-
 export interface AuditLogsViewProps {
   pageSize?: number;
 }
 
 export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
-  const [logs, setLogs] = useState<AuditLogItem[]>(FALLBACK_AUDIT_LOGS);
-  const [totalLogs, setTotalLogs] = useState<number>(FALLBACK_AUDIT_LOGS.length);
+  const [logs, setLogs] = useState<AuditLogItem[]>([]);
+  const [totalLogs, setTotalLogs] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [actionFilter, setActionFilter] = useState<string>('ALL');
   const [entityFilter, setEntityFilter] = useState<string>('ALL');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isOfflineFallback, setIsOfflineFallback] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Expanded row IDs for JSON metadata
-  const [expandedLogIds, setExpandedLogIds] = useState<Record<string, boolean>>({
-    'log-001': true, // default first one expanded for instant clarity
-  });
+  const [expandedLogIds, setExpandedLogIds] = useState<Record<string, boolean>>({});
 
   const toggleExpand = (id: string) => {
     setExpandedLogIds((prev) => ({
@@ -166,6 +57,7 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
   const fetchAuditLogs = useCallback(
     async (page: number, action: string, entity: string) => {
       setIsLoading(true);
+      setError(null);
       try {
         const queryParams = new URLSearchParams();
         queryParams.set('page', String(page));
@@ -173,33 +65,33 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
         if (action !== 'ALL') queryParams.set('action', action);
         if (entity !== 'ALL') queryParams.set('entity', entity);
 
-        const res = await api.get<PaginatedAuditLogsResponse>(
-          `/api/v1/admin/audit?${queryParams.toString()}`
-        );
+        let res: PaginatedAuditLogsResponse;
+        try {
+          res = await api.get<PaginatedAuditLogsResponse>(
+            `/api/v1/admin/audit?${queryParams.toString()}`
+          );
+        } catch (err: unknown) {
+          if (err instanceof Error && err.message.includes('404')) {
+            res = await api.get<PaginatedAuditLogsResponse>(
+              `/admin/audit?${queryParams.toString()}`
+            );
+          } else {
+            throw err;
+          }
+        }
 
         if (res && Array.isArray(res.data)) {
           setLogs(res.data);
           setTotalLogs(res.total);
           setCurrentPage(res.page);
           setTotalPages(res.totalPages || Math.ceil(res.total / pageSize) || 1);
-          setIsOfflineFallback(false);
+          setError(null);
         } else {
-          throw new Error('Invalid audit log response');
+          throw new Error('Invalid audit log response format');
         }
-      } catch {
-        // Fallback filter locally
-        setIsOfflineFallback(true);
-        let filtered = FALLBACK_AUDIT_LOGS;
-        if (action !== 'ALL') {
-          filtered = filtered.filter((l) => l.action === action);
-        }
-        if (entity !== 'ALL') {
-          filtered = filtered.filter((l) => l.entity === entity);
-        }
-        setTotalLogs(filtered.length);
-        setTotalPages(Math.ceil(filtered.length / pageSize) || 1);
-        const startIndex = (page - 1) * pageSize;
-        setLogs(filtered.slice(startIndex, startIndex + pageSize));
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to retrieve system audit logs.';
+        setError(msg);
       } finally {
         setIsLoading(false);
       }
@@ -277,16 +169,20 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
         </Button>
       </div>
 
-      {/* Offline Standalone Notice */}
-      {isOfflineFallback && (
-        <div className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-200">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+      {/* Error Alert Banner */}
+      {error && (
+        <div className="flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+          <div className="flex items-center gap-3">
+            <svg className="h-5 w-5 shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             <span>
-              <strong>Local Mock View:</strong> Displaying simulated audit logs from persistent ledger cache.
+              <strong>API Error:</strong> {error}
             </span>
           </div>
-          <span className="font-mono text-[11px] text-amber-400/80">Offline Mode</span>
+          <Button variant="secondary" size="sm" onClick={() => fetchAuditLogs(currentPage, actionFilter, entityFilter)}>
+            Retry
+          </Button>
         </div>
       )}
 
@@ -359,7 +255,16 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {logs.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+                      <span className="text-xs text-gray-400 font-mono">Loading immutable audit logs…</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : logs.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
                     <div className="flex flex-col items-center justify-center gap-2">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -19,74 +19,6 @@ export interface AdminBookingItem {
   notes?: string;
 }
 
-export const FALLBACK_BOOKINGS: AdminBookingItem[] = [
-  {
-    id: 'b8a1c902-7491-4123-9c88-102938475610',
-    customerName: 'Dara Heng',
-    customerEmail: 'dara.heng@gmail.com',
-    eventTitle: 'BarCamp Phnom Penh 2026',
-    tierName: 'VIP Developer Pass',
-    quantity: 1,
-    totalAmount: 75.0,
-    paymentRef: 'KHQR_MD5_9a8f7c6e5d4b3a21',
-    status: 'PENDING',
-    createdAt: '2026-10-28T06:45:00.000Z',
-    notes: 'Bakong customer deducted $75; webhook timed out after 3 retries (stuck in pending).',
-  },
-  {
-    id: 'c9b2d013-8502-5234-ad99-213049586721',
-    customerName: 'Sophea Mean',
-    customerEmail: 'sophea.mean@cadt.edu.kh',
-    eventTitle: 'BarCamp Phnom Penh 2026',
-    tierName: 'General Admission',
-    quantity: 2,
-    totalAmount: 50.0,
-    paymentRef: 'KHQR_MD5_1b2c3d4e5f6a7b8c',
-    status: 'PENDING',
-    createdAt: '2026-10-28T06:50:00.000Z',
-    notes: 'NBC Bakong gateway 504 gateway timeout on webhook dispatch.',
-  },
-  {
-    id: 'd0c3e124-9613-6345-be00-324150697832',
-    customerName: 'Chantha Sok',
-    customerEmail: 'chantha.s@startup.io',
-    eventTitle: 'Cambodia Tech Summit 2026',
-    tierName: 'Early Bird Pass',
-    quantity: 1,
-    totalAmount: 15.0,
-    paymentRef: 'KHQR_MD5_e7f8a9b0c1d2e3f4',
-    status: 'PAID',
-    createdAt: '2026-10-28T05:30:00.000Z',
-    notes: 'Standard webhook confirmed.',
-  },
-  {
-    id: 'e1d4f235-0724-7456-cf11-435261708943',
-    customerName: 'Linda Chhay',
-    customerEmail: 'linda.chhay@student.cadt.edu.kh',
-    eventTitle: 'BarCamp Phnom Penh 2026',
-    tierName: 'General Admission',
-    quantity: 1,
-    totalAmount: 25.0,
-    paymentRef: 'KHQR_MD5_4a5b6c7d8e9f0a1b',
-    status: 'PAID',
-    createdAt: '2026-10-28T04:12:00.000Z',
-    notes: 'Verified transaction.',
-  },
-  {
-    id: 'f2e5a346-1835-8567-d022-546372819054',
-    customerName: 'Vireak Sam',
-    customerEmail: 'vireak.sam@fintech.com.kh',
-    eventTitle: 'DevFest Phnom Penh 2026',
-    tierName: 'VIP Pass',
-    quantity: 1,
-    totalAmount: 75.0,
-    paymentRef: 'KHQR_MD5_3d4e5f6a7b8c9d0e',
-    status: 'REFUNDED',
-    createdAt: '2026-10-27T16:20:00.000Z',
-    notes: 'Customer requested cancellation due to scheduling conflict; refunded by admin.',
-  },
-];
-
 export interface TransactionOverridesViewProps {
   initialStatusFilter?: 'ALL' | 'PENDING' | 'PAID' | 'REFUNDED';
 }
@@ -94,11 +26,13 @@ export interface TransactionOverridesViewProps {
 export function TransactionOverridesView({
   initialStatusFilter = 'ALL',
 }: TransactionOverridesViewProps) {
-  const [bookings, setBookings] = useState<AdminBookingItem[]>(FALLBACK_BOOKINGS);
+  const [bookings, setBookings] = useState<AdminBookingItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'PAID' | 'REFUNDED'>(
     initialStatusFilter
   );
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Modal State for Force Confirm
   const [confirmModalBooking, setConfirmModalBooking] = useState<AdminBookingItem | null>(null);
@@ -120,12 +54,65 @@ export function TransactionOverridesView({
     return () => clearTimeout(timer);
   }, [toastMessage]);
 
+  const fetchBookings = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const query = statusFilter !== 'ALL' ? `?status=${statusFilter}` : '';
+      let res: { bookings: any[]; total: number };
+      try {
+        res = await api.get<{ bookings: any[]; total: number }>(`/api/v1/admin/bookings${query}`);
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message.includes('404')) {
+          res = await api.get<{ bookings: any[]; total: number }>(`/admin/bookings${query}`);
+        } else {
+          throw err;
+        }
+      }
+
+      const list = Array.isArray(res.bookings) ? res.bookings : [];
+      const mapped: AdminBookingItem[] = list.map((b: any) => ({
+        id: b.id,
+        customerName: b.customerName ?? b.user?.name ?? b.user?.email?.split('@')[0] ?? 'Attendee',
+        customerEmail: b.customerEmail ?? b.user?.email ?? '',
+        eventTitle: b.eventTitle ?? b.event?.title ?? 'Event',
+        tierName: b.tierName ?? b.tier?.name ?? 'Standard Pass',
+        quantity: b.quantity ?? 1,
+        totalAmount: Number(b.totalAmount ?? 0),
+        paymentRef: b.paymentRef ?? 'PENDING_KHQR',
+        status: b.status,
+        createdAt: typeof b.createdAt === 'string' ? b.createdAt : new Date(b.createdAt).toISOString(),
+        notes: b.notes,
+      }));
+
+      setBookings(mapped);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to load bookings queue.';
+      setError(msg);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [statusFilter]);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
+
   const handleForceConfirm = async () => {
     if (!confirmModalBooking) return;
     setIsForceConfirming(true);
 
     try {
-      await api.post(`/api/v1/admin/bookings/${confirmModalBooking.id}/force-confirm`);
+      try {
+        await api.post(`/api/v1/admin/bookings/${confirmModalBooking.id}/force-confirm`);
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message.includes('404')) {
+          await api.post(`/admin/bookings/${confirmModalBooking.id}/force-confirm`);
+        } else {
+          throw err;
+        }
+      }
+
       // Update local state
       setBookings((prev) =>
         prev.map((b) => (b.id === confirmModalBooking.id ? { ...b, status: 'PAID' } : b))
@@ -135,16 +122,12 @@ export function TransactionOverridesView({
         text: `Booking #${confirmModalBooking.id.slice(0, 8)} successfully FORCE-CONFIRMED. Tickets generated.`,
       });
       setConfirmModalBooking(null);
-    } catch {
-      // Local simulation for offline / standalone test
-      setBookings((prev) =>
-        prev.map((b) => (b.id === confirmModalBooking.id ? { ...b, status: 'PAID' } : b))
-      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to force-confirm booking.';
       setToastMessage({
-        type: 'success',
-        text: `[Offline Simulation] Booking #${confirmModalBooking.id.slice(0, 8)} FORCE-CONFIRMED. Status updated to PAID.`,
+        type: 'error',
+        text: msg,
       });
-      setConfirmModalBooking(null);
     } finally {
       setIsForceConfirming(false);
     }
@@ -155,7 +138,16 @@ export function TransactionOverridesView({
     setIsRefunding(true);
 
     try {
-      await api.post(`/api/v1/admin/bookings/${refundModalBooking.id}/refund`);
+      try {
+        await api.post(`/api/v1/admin/bookings/${refundModalBooking.id}/refund`);
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message.includes('404')) {
+          await api.post(`/admin/bookings/${refundModalBooking.id}/refund`);
+        } else {
+          throw err;
+        }
+      }
+
       // Update local state
       setBookings((prev) =>
         prev.map((b) => (b.id === refundModalBooking.id ? { ...b, status: 'REFUNDED' } : b))
@@ -165,16 +157,12 @@ export function TransactionOverridesView({
         text: `Booking #${refundModalBooking.id.slice(0, 8)} successfully REFUNDED. Tickets revoked and tier quota restored.`,
       });
       setRefundModalBooking(null);
-    } catch {
-      // Local simulation for offline / standalone test
-      setBookings((prev) =>
-        prev.map((b) => (b.id === refundModalBooking.id ? { ...b, status: 'REFUNDED' } : b))
-      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to refund booking.';
       setToastMessage({
-        type: 'success',
-        text: `[Offline Simulation] Booking #${refundModalBooking.id.slice(0, 8)} REFUNDED. Tickets revoked.`,
+        type: 'error',
+        text: msg,
       });
-      setRefundModalBooking(null);
     } finally {
       setIsRefunding(false);
     }
@@ -255,16 +243,16 @@ export function TransactionOverridesView({
           <Button
             variant="secondary"
             size="md"
-            onClick={() => {
-              setBookings(FALLBACK_BOOKINGS);
-              setToastMessage({
-                type: 'success',
-                text: 'Incident queue reloaded from live ledger.',
-              });
-            }}
+            onClick={() => fetchBookings()}
+            isLoading={isLoading}
             className="flex items-center gap-2"
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -276,6 +264,21 @@ export function TransactionOverridesView({
           </Button>
         </div>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+          <div className="flex items-center gap-3">
+            <svg className="h-5 w-5 shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{error}</span>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => fetchBookings()}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       {/* Operational Runbook Guidance Box */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -373,7 +376,16 @@ export function TransactionOverridesView({
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {filteredBookings.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
+                      <span className="text-xs text-gray-400 font-mono">Loading incident ledger queue…</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredBookings.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
                     <div className="flex flex-col items-center justify-center gap-2">

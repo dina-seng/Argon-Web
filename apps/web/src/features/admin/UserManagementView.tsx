@@ -22,86 +22,19 @@ export interface PaginatedUsersResponse {
   totalPages: number;
 }
 
-export const FALLBACK_USERS: AdminUser[] = [
-  {
-    id: 'usr-admin-root',
-    email: 'admin@argon.events',
-    name: 'Sophea Root',
-    role: 'ADMIN',
-    createdAt: '2026-08-01T00:00:00.000Z',
-    updatedAt: '2026-08-01T00:00:00.000Z',
-  },
-  {
-    id: 'usr-cadt-organizer',
-    email: 'sophea.mean@cadt.edu.kh',
-    name: 'Sophea Mean',
-    role: 'ORGANIZER',
-    createdAt: '2026-09-10T08:30:00.000Z',
-    updatedAt: '2026-10-24T11:15:00.000Z',
-  },
-  {
-    id: 'usr-barcamp-org',
-    email: 'organizer@barcamp.asia',
-    name: 'Chantha Sok',
-    role: 'ORGANIZER',
-    createdAt: '2026-09-15T09:00:00.000Z',
-    updatedAt: '2026-09-15T09:00:00.000Z',
-  },
-  {
-    id: 'usr-devfest-org',
-    email: 'organizer@devfest.kh',
-    name: 'Rathana Kim',
-    role: 'ORGANIZER',
-    createdAt: '2026-09-20T14:20:00.000Z',
-    updatedAt: '2026-09-20T14:20:00.000Z',
-  },
-  {
-    id: 'usr-customer-1',
-    email: 'dara.heng@gmail.com',
-    name: 'Dara Heng',
-    role: 'CUSTOMER',
-    createdAt: '2026-10-02T10:14:00.000Z',
-    updatedAt: '2026-10-02T10:14:00.000Z',
-  },
-  {
-    id: 'usr-customer-2',
-    email: 'linda.chhay@student.cadt.edu.kh',
-    name: 'Linda Chhay',
-    role: 'CUSTOMER',
-    createdAt: '2026-10-05T12:00:00.000Z',
-    updatedAt: '2026-10-05T12:00:00.000Z',
-  },
-  {
-    id: 'usr-customer-3',
-    email: 'vireak.sam@fintech.com.kh',
-    name: 'Vireak Sam',
-    role: 'CUSTOMER',
-    createdAt: '2026-10-12T16:45:00.000Z',
-    updatedAt: '2026-10-12T16:45:00.000Z',
-  },
-  {
-    id: 'usr-customer-4',
-    email: 'bopha.long@khmertech.org',
-    name: 'Bopha Long',
-    role: 'CUSTOMER',
-    createdAt: '2026-10-18T18:10:00.000Z',
-    updatedAt: '2026-10-18T18:10:00.000Z',
-  },
-];
-
 export interface UserManagementViewProps {
   pageSize?: number;
 }
 
 export function UserManagementView({ pageSize = 10 }: UserManagementViewProps) {
-  const [users, setUsers] = useState<AdminUser[]>(FALLBACK_USERS);
-  const [totalUsers, setTotalUsers] = useState<number>(FALLBACK_USERS.length);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [totalUsers, setTotalUsers] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'CUSTOMER' | 'ORGANIZER' | 'ADMIN'>('ALL');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isOfflineFallback, setIsOfflineFallback] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Modal State
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
@@ -124,6 +57,7 @@ export function UserManagementView({ pageSize = 10 }: UserManagementViewProps) {
   const fetchUsers = useCallback(
     async (page: number, search: string, role: string) => {
       setIsLoading(true);
+      setError(null);
       try {
         const queryParams = new URLSearchParams();
         queryParams.set('page', String(page));
@@ -131,35 +65,29 @@ export function UserManagementView({ pageSize = 10 }: UserManagementViewProps) {
         if (search.trim()) queryParams.set('search', search.trim());
         if (role !== 'ALL') queryParams.set('role', role);
 
-        const res = await api.get<PaginatedUsersResponse>(`/api/v1/admin/users?${queryParams.toString()}`);
+        let res: PaginatedUsersResponse;
+        try {
+          res = await api.get<PaginatedUsersResponse>(`/api/v1/admin/users?${queryParams.toString()}`);
+        } catch (err: unknown) {
+          if (err instanceof Error && err.message.includes('404')) {
+            res = await api.get<PaginatedUsersResponse>(`/admin/users?${queryParams.toString()}`);
+          } else {
+            throw err;
+          }
+        }
+
         if (res && Array.isArray(res.data)) {
           setUsers(res.data);
           setTotalUsers(res.total);
           setCurrentPage(res.page);
           setTotalPages(res.totalPages || Math.ceil(res.total / pageSize) || 1);
-          setIsOfflineFallback(false);
+          setError(null);
         } else {
-          throw new Error('Invalid user directory response');
+          throw new Error('Invalid user directory response structure');
         }
-      } catch {
-        // Fallback filter locally
-        setIsOfflineFallback(true);
-        let filtered = FALLBACK_USERS;
-        if (role !== 'ALL') {
-          filtered = filtered.filter((u) => u.role === role);
-        }
-        if (search.trim()) {
-          const q = search.trim().toLowerCase();
-          filtered = filtered.filter(
-            (u) =>
-              (u.name && u.name.toLowerCase().includes(q)) ||
-              u.email.toLowerCase().includes(q)
-          );
-        }
-        setTotalUsers(filtered.length);
-        setTotalPages(Math.ceil(filtered.length / pageSize) || 1);
-        const startIndex = (page - 1) * pageSize;
-        setUsers(filtered.slice(startIndex, startIndex + pageSize));
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to retrieve registered users.';
+        setError(msg);
       } finally {
         setIsLoading(false);
       }
@@ -193,11 +121,21 @@ export function UserManagementView({ pageSize = 10 }: UserManagementViewProps) {
     setModalError(null);
 
     try {
-      await api.patch(`/api/v1/admin/users/${selectedUser.id}/role`, {
-        role: targetRole,
-      });
+      try {
+        await api.patch(`/api/v1/admin/users/${selectedUser.id}/role`, {
+          role: targetRole,
+        });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message.includes('404')) {
+          await api.patch(`/admin/users/${selectedUser.id}/role`, {
+            role: targetRole,
+          });
+        } else {
+          throw err;
+        }
+      }
 
-      // Optimistic update
+      // Optimistic state update on real API success
       setUsers((prev) =>
         prev.map((u) => (u.id === selectedUser.id ? { ...u, role: targetRole } : u))
       );
@@ -208,21 +146,9 @@ export function UserManagementView({ pageSize = 10 }: UserManagementViewProps) {
       });
       handleCloseRoleModal();
     } catch (err: unknown) {
-      // In offline / demo mode, still simulate optimistic update
-      if (isOfflineFallback) {
-        setUsers((prev) =>
-          prev.map((u) => (u.id === selectedUser.id ? { ...u, role: targetRole } : u))
-        );
-        setToastMessage({
-          type: 'success',
-          text: `[Offline Simulation] Role for ${selectedUser.email} updated to ${targetRole}.`,
-        });
-        handleCloseRoleModal();
-      } else {
-        const errorMsg =
-          err instanceof Error ? err.message : 'Failed to update user role. Please try again.';
-        setModalError(errorMsg);
-      }
+      const errorMsg =
+        err instanceof Error ? err.message : 'Failed to update user role. Please try again.';
+      setModalError(errorMsg);
     } finally {
       setIsSavingRole(false);
     }
@@ -318,16 +244,20 @@ export function UserManagementView({ pageSize = 10 }: UserManagementViewProps) {
         </Button>
       </div>
 
-      {/* Offline Standalone Notice */}
-      {isOfflineFallback && (
-        <div className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-200">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+      {/* Error Alert Banner */}
+      {error && (
+        <div className="flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+          <div className="flex items-center gap-3">
+            <svg className="h-5 w-5 shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             <span>
-              <strong>Local Mock View:</strong> Backend unreachable; changes will be simulated locally.
+              <strong>API Error:</strong> {error}
             </span>
           </div>
-          <span className="font-mono text-[11px] text-amber-400/80">Offline Mode</span>
+          <Button variant="secondary" size="sm" onClick={() => fetchUsers(currentPage, searchQuery, roleFilter)}>
+            Retry
+          </Button>
         </div>
       )}
 
@@ -408,7 +338,16 @@ export function UserManagementView({ pageSize = 10 }: UserManagementViewProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {users.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-400 border-t-transparent" />
+                      <span className="text-xs text-gray-400 font-mono">Loading user directory…</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : users.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
                     <div className="flex flex-col items-center justify-center gap-2">

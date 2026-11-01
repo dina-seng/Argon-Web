@@ -30,83 +30,16 @@ export interface RecentActivityItem {
   description: string;
 }
 
-export const FALLBACK_ADMIN_METRICS: PlatformMetricsOverview = {
-  totalPaidBookings: 1420,
-  grossRevenue: 48950.0,
-  gmv: 48950.0,
-  totalTicketsSold: 2840,
-  activeEventsCount: 8,
-  doorCheckInCount: 1120,
-  usersByRole: {
-    CUSTOMER: 3840,
-    ORGANIZER: 24,
-    ADMIN: 3,
-  },
-};
-
-export const FALLBACK_RECENT_ACTIVITY: RecentActivityItem[] = [
-  {
-    id: 'act-1',
-    action: 'BOOKING_FORCE_CONFIRMED',
-    actorEmail: 'admin@argon.events',
-    entity: 'Booking',
-    entityId: 'bk_91823a04',
-    timestamp: '5 minutes ago',
-    status: 'WARNING',
-    description: 'Manual Bakong KHQR MD5 hash override resolved for $75.00 ticket',
-  },
-  {
-    id: 'act-2',
-    action: 'USER_ROLE_PROMOTED',
-    actorEmail: 'admin@argon.events',
-    entity: 'User',
-    entityId: 'usr_cadt_organizer',
-    timestamp: '28 minutes ago',
-    status: 'SUCCESS',
-    description: 'Promoted sophea.mean@cadt.edu.kh to ORGANIZER role',
-  },
-  {
-    id: 'act-3',
-    action: 'TIER_QUOTA_MODIFIED',
-    actorEmail: 'organizer@barcamp.asia',
-    entity: 'TicketTier',
-    entityId: 'tier-early-bird',
-    timestamp: '1 hour ago',
-    status: 'INFO',
-    description: 'Early Bird Pass capacity increased: 100 -> 150 seats',
-  },
-  {
-    id: 'act-4',
-    action: 'BOOKING_REFUNDED',
-    actorEmail: 'admin@argon.events',
-    entity: 'Booking',
-    entityId: 'bk_83912b77',
-    timestamp: '3 hours ago',
-    status: 'DANGER',
-    description: 'Disputed transaction refunded; 2 tickets revoked and inventory released',
-  },
-  {
-    id: 'act-5',
-    action: 'EVENT_PUBLISHED',
-    actorEmail: 'organizer@devfest.kh',
-    entity: 'Event',
-    entityId: 'evt_devfest_2026',
-    timestamp: '5 hours ago',
-    status: 'SUCCESS',
-    description: 'DevFest Phnom Penh 2026 opened for public registration',
-  },
-];
-
 export interface AdminDashboardViewProps {
   autoRefreshIntervalMs?: number;
 }
 
 export function AdminDashboardView({ autoRefreshIntervalMs = 15000 }: AdminDashboardViewProps) {
-  const [metrics, setMetrics] = useState<PlatformMetricsOverview>(FALLBACK_ADMIN_METRICS);
-  const [activities, setActivities] = useState<RecentActivityItem[]>(FALLBACK_RECENT_ACTIVITY);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [metrics, setMetrics] = useState<PlatformMetricsOverview | null>(null);
+  const [activities, setActivities] = useState<RecentActivityItem[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-  const [isOfflineFallback, setIsOfflineFallback] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState<boolean>(true);
 
@@ -114,18 +47,29 @@ export function AdminDashboardView({ autoRefreshIntervalMs = 15000 }: AdminDashb
     if (isManualRefresh) {
       setIsRefreshing(true);
     }
+    setError(null);
 
     try {
-      const data = await api.get<PlatformMetricsOverview>('/api/v1/admin/metrics/overview');
+      let data: PlatformMetricsOverview;
+      try {
+        data = await api.get<PlatformMetricsOverview>('/api/v1/admin/metrics/overview');
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message.includes('404')) {
+          data = await api.get<PlatformMetricsOverview>('/admin/metrics/overview');
+        } else {
+          throw err;
+        }
+      }
+
       if (data && typeof data.grossRevenue === 'number') {
         setMetrics(data);
-        setIsOfflineFallback(false);
+        setError(null);
       } else {
-        throw new Error('Unexpected metrics response shape');
+        throw new Error('Unexpected metrics response shape from server');
       }
-    } catch {
-      // Graceful offline fallback
-      setIsOfflineFallback(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to retrieve administrative metrics.';
+      setError(msg);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -134,7 +78,7 @@ export function AdminDashboardView({ autoRefreshIntervalMs = 15000 }: AdminDashb
 
     // Attempt to fetch live audit logs for activity feed
     try {
-      const auditRes = await api.get<{
+      let auditRes: {
         data: Array<{
           id: string;
           action: string;
@@ -144,9 +88,18 @@ export function AdminDashboardView({ autoRefreshIntervalMs = 15000 }: AdminDashb
           createdAt: string;
           metadata?: Record<string, unknown>;
         }>;
-      }>('/api/v1/admin/audit?limit=5');
+      };
+      try {
+        auditRes = await api.get('/api/v1/admin/audit?limit=5');
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message.includes('404')) {
+          auditRes = await api.get('/admin/audit?limit=5');
+        } else {
+          throw err;
+        }
+      }
 
-      if (auditRes && Array.isArray(auditRes.data) && auditRes.data.length > 0) {
+      if (auditRes && Array.isArray(auditRes.data)) {
         const mapped: RecentActivityItem[] = auditRes.data.map((log) => {
           let status: RecentActivityItem['status'] = 'INFO';
           if (log.action.includes('REFUND')) status = 'DANGER';
@@ -161,7 +114,7 @@ export function AdminDashboardView({ autoRefreshIntervalMs = 15000 }: AdminDashb
           return {
             id: log.id,
             action: log.action,
-            actorEmail: log.actor?.email ?? 'system@argon.events',
+            actorEmail: log.actor?.email ?? 'system@argon.kh',
             entity: log.entity,
             entityId: log.entityId,
             timestamp: timeStr,
@@ -174,7 +127,7 @@ export function AdminDashboardView({ autoRefreshIntervalMs = 15000 }: AdminDashb
         setActivities(mapped);
       }
     } catch {
-      // Fallback activities preserved
+      // Non-fatal; activities list remains unchanged
     }
   }, []);
 
@@ -264,154 +217,170 @@ export function AdminDashboardView({ autoRefreshIntervalMs = 15000 }: AdminDashb
         </div>
       </div>
 
-      {/* Offline Standalone Notice */}
-      {isOfflineFallback && (
-        <div className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+      {/* Error Alert Banner */}
+      {error && (
+        <div className="flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
           <div className="flex items-center gap-3">
-            <svg className="h-5 w-5 shrink-0 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-5 w-5 shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
             <span>
-              <strong>Offline / Demo Mode:</strong> Backend server unreachable; displaying cached platform metrics and simulation data.
+              <strong>API Error:</strong> {error}
             </span>
           </div>
-          <span className="font-mono text-xs text-amber-400/80">
-            {lastRefreshedAt.toLocaleTimeString()}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-xs text-rose-400/80">
+              {lastRefreshedAt.toLocaleTimeString()}
+            </span>
+            <Button variant="secondary" size="sm" onClick={() => fetchOverview(true)}>
+              Retry
+            </Button>
+          </div>
         </div>
       )}
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Gross Platform Volume */}
-        <Card className="relative overflow-hidden group hover:border-emerald-500/40 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-medium text-gray-400 uppercase tracking-wider">
-              Gross Platform Volume
-            </span>
-            <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 border border-emerald-500/20">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
-              {formatCurrency(metrics.grossRevenue)}
-            </div>
-            <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
-              <span className="text-emerald-400 font-semibold inline-flex items-center gap-0.5">
-                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+      {isLoading && !metrics ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="animate-pulse py-8 flex flex-col justify-center items-center">
+              <div className="h-3 w-28 bg-white/10 rounded mb-4" />
+              <div className="h-8 w-36 bg-white/20 rounded" />
+            </Card>
+          ))}
+        </div>
+      ) : metrics ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* Gross Platform Volume */}
+          <Card className="relative overflow-hidden group hover:border-emerald-500/40 transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono font-medium text-gray-400 uppercase tracking-wider">
+                Gross Platform Volume
+              </span>
+              <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 border border-emerald-500/20">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
-                +14.2%
-              </span>
-              <span>vs previous month</span>
+              </div>
             </div>
-          </div>
-        </Card>
+            <div className="mt-4">
+              <div className="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
+                {formatCurrency(metrics.grossRevenue)}
+              </div>
+              <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
+                <span className="text-emerald-400 font-semibold inline-flex items-center gap-0.5">
+                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                  </svg>
+                  GMV Settled
+                </span>
+                <span>platform volume</span>
+              </div>
+            </div>
+          </Card>
 
-        {/* Paid Bookings & Tickets */}
-        <Card className="relative overflow-hidden group hover:border-indigo-500/40 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-medium text-gray-400 uppercase tracking-wider">
-              Bookings & Tickets Sold
-            </span>
-            <div className="h-8 w-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"
-                />
-              </svg>
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
-              {formatNumber(metrics.totalTicketsSold)}
-            </div>
-            <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
-              <span className="font-mono text-gray-300 font-medium">
-                {formatNumber(metrics.totalPaidBookings)}
+          {/* Paid Bookings & Tickets */}
+          <Card className="relative overflow-hidden group hover:border-indigo-500/40 transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono font-medium text-gray-400 uppercase tracking-wider">
+                Bookings & Tickets Sold
               </span>
-              <span>paid checkout transactions</span>
+              <div className="h-8 w-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"
+                  />
+                </svg>
+              </div>
             </div>
-          </div>
-        </Card>
+            <div className="mt-4">
+              <div className="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
+                {formatNumber(metrics.totalTicketsSold)}
+              </div>
+              <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
+                <span className="font-mono text-gray-300 font-medium">
+                  {formatNumber(metrics.totalPaidBookings)}
+                </span>
+                <span>paid checkout transactions</span>
+              </div>
+            </div>
+          </Card>
 
-        {/* Active Published Events */}
-        <Card className="relative overflow-hidden group hover:border-sky-500/40 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-medium text-gray-400 uppercase tracking-wider">
-              Active Events
-            </span>
-            <div className="h-8 w-8 rounded-lg bg-sky-500/10 flex items-center justify-center text-sky-400 border border-sky-500/20">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
-              {metrics.activeEventsCount}
-            </div>
-            <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
-              <span className="inline-flex items-center gap-1 text-sky-400 font-semibold">
-                <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
-                Published
+          {/* Active Published Events */}
+          <Card className="relative overflow-hidden group hover:border-sky-500/40 transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono font-medium text-gray-400 uppercase tracking-wider">
+                Active Events
               </span>
-              <span>live on discovery marketplace</span>
+              <div className="h-8 w-8 rounded-lg bg-sky-500/10 flex items-center justify-center text-sky-400 border border-sky-500/20">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+              </div>
             </div>
-          </div>
-        </Card>
+            <div className="mt-4">
+              <div className="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
+                {metrics.activeEventsCount}
+              </div>
+              <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
+                <span className="inline-flex items-center gap-1 text-sky-400 font-semibold">
+                  <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
+                  Published
+                </span>
+                <span>live on discovery marketplace</span>
+              </div>
+            </div>
+          </Card>
 
-        {/* Registered Organizers & Users */}
-        <Card className="relative overflow-hidden group hover:border-purple-500/40 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-medium text-gray-400 uppercase tracking-wider">
-              Registered Organizers
-            </span>
-            <div className="h-8 w-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400 border border-purple-500/20">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
-              {metrics.usersByRole?.ORGANIZER ?? 0}
-            </div>
-            <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
-              <span className="font-mono text-gray-300 font-medium">
-                {formatNumber(metrics.usersByRole?.CUSTOMER ?? 0)}
+          {/* Registered Organizers & Users */}
+          <Card className="relative overflow-hidden group hover:border-purple-500/40 transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono font-medium text-gray-400 uppercase tracking-wider">
+                Registered Organizers
               </span>
-              <span>active customers enrolled</span>
+              <div className="h-8 w-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400 border border-purple-500/20">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
+                </svg>
+              </div>
             </div>
-          </div>
-        </Card>
-      </div>
+            <div className="mt-4">
+              <div className="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight">
+                {metrics.usersByRole?.ORGANIZER ?? 0}
+              </div>
+              <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
+                <span className="font-mono text-gray-300 font-medium">
+                  {formatNumber(metrics.usersByRole?.CUSTOMER ?? 0)}
+                </span>
+                <span>active customers enrolled</span>
+              </div>
+            </div>
+          </Card>
+        </div>
+      ) : null}
 
       {/* Operational Health Status & Quick Navigation */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -474,7 +443,7 @@ export function AdminDashboardView({ autoRefreshIntervalMs = 15000 }: AdminDashb
               </div>
               <div className="text-right">
                 <Badge label="Healthy" variant="success" />
-                <div className="font-mono text-[10px] text-gray-400 mt-1">Pool: 8/20</div>
+                <div className="font-mono text-[10px] text-gray-400 mt-1">Active Pool</div>
               </div>
             </div>
           </div>
@@ -633,42 +602,48 @@ export function AdminDashboardView({ autoRefreshIntervalMs = 15000 }: AdminDashb
           </Link>
         </div>
 
-        <div className="divide-y divide-white/5">
-          {activities.map((item) => (
-            <div key={item.id} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <div
-                  className={`mt-1 h-2.5 w-2.5 rounded-full shrink-0 ${
-                    item.status === 'SUCCESS'
-                      ? 'bg-emerald-400'
-                      : item.status === 'WARNING'
-                      ? 'bg-amber-400'
-                      : item.status === 'DANGER'
-                      ? 'bg-rose-400'
-                      : 'bg-indigo-400'
-                  }`}
-                />
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-xs font-semibold text-white">
-                      {item.action}
-                    </span>
-                    <span className="text-xs text-gray-400">by</span>
-                    <span className="text-xs font-medium text-gray-300">{item.actorEmail}</span>
+        {activities.length === 0 ? (
+          <div className="py-8 text-center text-xs text-gray-400">
+            No recent activity records available.
+          </div>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {activities.map((item) => (
+              <div key={item.id} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`mt-1 h-2.5 w-2.5 rounded-full shrink-0 ${
+                      item.status === 'SUCCESS'
+                        ? 'bg-emerald-400'
+                        : item.status === 'WARNING'
+                        ? 'bg-amber-400'
+                        : item.status === 'DANGER'
+                        ? 'bg-rose-400'
+                        : 'bg-indigo-400'
+                    }`}
+                  />
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-xs font-semibold text-white">
+                        {item.action}
+                      </span>
+                      <span className="text-xs text-gray-400">by</span>
+                      <span className="text-xs font-medium text-gray-300">{item.actorEmail}</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">{item.description}</p>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">{item.description}</p>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0 sm:self-center ml-5 sm:ml-0">
+                  <span className="font-mono text-[11px] text-gray-400">{item.timestamp}</span>
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-white/5 text-gray-300 border border-white/10">
+                    {item.entity}
+                  </span>
                 </div>
               </div>
-
-              <div className="flex items-center gap-3 shrink-0 sm:self-center ml-5 sm:ml-0">
-                <span className="font-mono text-[11px] text-gray-400">{item.timestamp}</span>
-                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-white/5 text-gray-300 border border-white/10">
-                  {item.entity}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   );
