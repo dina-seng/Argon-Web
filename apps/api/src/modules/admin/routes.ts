@@ -12,6 +12,7 @@ import {
   forceConfirmParamsSchema,
   refundBookingParamsSchema,
   getAuditLogsQuerySchema,
+  adminBookingsQuerySchema,
 } from './schema';
 import {
   getPlatformOverviewController,
@@ -20,6 +21,7 @@ import {
   forceConfirmBookingController,
   refundBookingController,
   listAuditLogsController,
+  listAdminBookingsController,
 } from './controller';
 
 export async function adminRoutes(app: FastifyInstance) {
@@ -34,6 +36,12 @@ export async function adminRoutes(app: FastifyInstance) {
     schema: { querystring: getUsersQuerySchema },
     preHandler: adminPreHandlers,
     handler: listUsersController,
+  });
+
+  app.get('/bookings', {
+    schema: { querystring: adminBookingsQuerySchema },
+    preHandler: adminPreHandlers,
+    handler: listAdminBookingsController,
   });
 
   app.patch('/users/:userId/role', {

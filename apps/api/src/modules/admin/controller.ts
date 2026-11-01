@@ -10,6 +10,7 @@ import type {
   ForceConfirmParams,
   RefundBookingParams,
   GetAuditLogsQuery,
+  AdminBookingsQuery,
 } from './schema';
 import * as adminService from './service';
 
@@ -82,4 +83,12 @@ export async function listAuditLogsController(
 ): Promise<void> {
   const result = await adminService.listAuditLogs(req.server.prisma, req.query);
   reply.status(200).send(result);
+}
+
+export async function listAdminBookingsController(
+  req: FastifyRequest<{ Querystring: AdminBookingsQuery }>,
+  reply: FastifyReply
+): Promise<void> {
+  const result = await adminService.listAdminBookings(req.server.prisma, req.query);
+  reply.status(200).send({ statusCode: 200, ...result });
 }

@@ -9,7 +9,7 @@ import {
   TicketStatus,
   Prisma,
 } from '@prisma/client';
-import type { GetUsersQuery, GetAuditLogsQuery } from './schema';
+import type { GetUsersQuery, GetAuditLogsQuery, AdminBookingsQuery } from './schema';
 
 export class HttpError extends Error {
   statusCode: number;
@@ -363,5 +363,79 @@ export async function listAuditLogs(prisma: PrismaClient, query: GetAuditLogsQue
     page,
     limit,
     totalPages: Math.ceil(total / limit),
+  };
+}
+
+export async function listAdminBookings(
+  prismaOrApp: PrismaClient | { prisma: PrismaClient },
+  query: AdminBookingsQuery
+) {
+  const prisma = 'prisma' in prismaOrApp ? prismaOrApp.prisma : prismaOrApp;
+  const limit = query.limit ?? 20;
+  const skip = query.page !== undefined ? (query.page - 1) * limit : (query.offset ?? 0);
+
+  const where: Prisma.BookingWhereInput = {};
+  if (query.status) {
+    where.status = query.status;
+  }
+  if (query.search) {
+    where.OR = [
+      { user: { name: { contains: query.search, mode: 'insensitive' } } },
+      { user: { email: { contains: query.search, mode: 'insensitive' } } },
+      { event: { title: { contains: query.search, mode: 'insensitive' } } },
+    ];
+  }
+
+  const [rawBookings, total] = await Promise.all([
+    prisma.booking.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        event: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+        tier: {
+          select: {
+            id: true,
+            name: true,
+            price: true,
+          },
+        },
+        tickets: {
+          select: {
+            id: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    }),
+    prisma.booking.count({ where }),
+  ]);
+
+  const bookings = rawBookings.map((b) => ({
+    ...b,
+    tier: b.tier
+      ? {
+          ...b.tier,
+          currency: 'USD',
+        }
+      : null,
+  }));
+
+  return {
+    bookings,
+    total,
   };
 }

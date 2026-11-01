@@ -117,6 +117,42 @@ describe('Admin Governance Module (/api/v1/admin)', () => {
 
       expect(res.statusCode).toBe(403);
     });
+
+    it('returns 401 Unauthorized when unauthenticated accessing /api/v1/admin/bookings', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/admin/bookings',
+      });
+
+      expect(res.statusCode).toBe(401);
+      expect(res.json()).toMatchObject({
+        error: 'Unauthorized',
+      });
+    });
+
+    it('returns 403 Forbidden when CUSTOMER accesses /api/v1/admin/bookings', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/admin/bookings',
+        headers: {
+          authorization: `Bearer ${customerToken}`,
+        },
+      });
+
+      expect(res.statusCode).toBe(403);
+    });
+
+    it('returns 403 Forbidden when ORGANIZER accesses /api/v1/admin/bookings', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/admin/bookings',
+        headers: {
+          authorization: `Bearer ${organizerToken}`,
+        },
+      });
+
+      expect(res.statusCode).toBe(403);
+    });
   });
 
   describe('GET /api/v1/admin/metrics/overview', () => {
@@ -195,6 +231,111 @@ describe('Admin Governance Module (/api/v1/admin)', () => {
       expect(data.total).toBe(1);
       expect(data.page).toBe(1);
       expect(data.limit).toBe(10);
+    });
+  });
+
+  describe('GET /api/v1/admin/bookings', () => {
+    it('returns 200 OK with paginated bookings and relations for ADMIN', async () => {
+      const mockBookings = [
+        {
+          id: bookingId,
+          userId: customerId,
+          eventId,
+          tierId,
+          status: 'PENDING',
+          quantity: 2,
+          expiresAt: new Date(Date.now() + 900000).toISOString(),
+          paymentReference: 'KHQR_TEST_REF_123',
+          gatewayTransactionId: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          user: {
+            id: customerId,
+            name: 'Dara Heng',
+            email: 'dara.heng@gmail.com',
+          },
+          event: {
+            id: eventId,
+            title: 'BarCamp Phnom Penh 2026',
+          },
+          tier: {
+            id: tierId,
+            name: 'VIP Developer Pass',
+            price: 75.0,
+          },
+          tickets: [
+            { id: 'ticket-1', status: TicketStatus.ACTIVE },
+            { id: 'ticket-2', status: TicketStatus.ACTIVE },
+          ],
+        },
+      ];
+
+      vi.spyOn(app.prisma.booking, 'findMany').mockResolvedValueOnce(mockBookings as any);
+      vi.spyOn(app.prisma.booking, 'count').mockResolvedValueOnce(1 as any);
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/admin/bookings?status=PENDING&limit=10&offset=0',
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(Array.isArray(body.bookings)).toBe(true);
+      expect(body.bookings).toHaveLength(1);
+      expect(body.total).toBe(1);
+      expect(body.bookings[0].id).toBe(bookingId);
+      expect(body.bookings[0].user.email).toBe('dara.heng@gmail.com');
+      expect(body.bookings[0].event.title).toBe('BarCamp Phnom Penh 2026');
+      expect(body.bookings[0].tier.name).toBe('VIP Developer Pass');
+      expect(body.bookings[0].tickets).toHaveLength(2);
+    });
+
+    it('filters bookings by search query and status', async () => {
+      const findManySpy = vi.spyOn(app.prisma.booking, 'findMany').mockResolvedValueOnce([] as any);
+      const countSpy = vi.spyOn(app.prisma.booking, 'count').mockResolvedValueOnce(0 as any);
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/admin/bookings?status=PENDING&search=Dara&limit=5&offset=10',
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.bookings).toEqual([]);
+      expect(body.total).toBe(0);
+
+      expect(findManySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: 'PENDING',
+            OR: [
+              { user: { name: { contains: 'Dara', mode: 'insensitive' } } },
+              { user: { email: { contains: 'Dara', mode: 'insensitive' } } },
+              { event: { title: { contains: 'Dara', mode: 'insensitive' } } },
+            ],
+          }),
+          skip: 10,
+          take: 5,
+        })
+      );
+      expect(countSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: 'PENDING',
+            OR: [
+              { user: { name: { contains: 'Dara', mode: 'insensitive' } } },
+              { user: { email: { contains: 'Dara', mode: 'insensitive' } } },
+              { event: { title: { contains: 'Dara', mode: 'insensitive' } } },
+            ],
+          }),
+        })
+      );
     });
   });
 
