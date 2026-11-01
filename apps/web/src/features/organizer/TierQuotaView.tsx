@@ -29,55 +29,11 @@ export interface EventMetricsResponse {
   tiers: TierItem[];
 }
 
-export const DEFAULT_EVENT_ID = 'b8c1a9f0-4281-4357-9d22-108191283901';
-
-export const KNOWN_EVENTS = [
-  {
-    id: DEFAULT_EVENT_ID,
-    title: 'BarCamp Phnom Penh 2026',
-  },
-  {
-    id: 'c9d2b0e1-5392-5468-0e33-219202394012',
-    title: 'Cambodia Tech Summit 2026',
-  },
-  {
-    id: 'd0e3c1f2-6403-6579-1f44-320313405123',
-    title: 'DevFest Phnom Penh 2026',
-  },
-];
-
-const INITIAL_FALLBACK_TIERS: TierItem[] = [
-  {
-    id: 'tier-early-bird',
-    name: 'Early Bird Pass',
-    price: 15.0,
-    capacity: 100,
-    soldCount: 100,
-    reservedCount: 0,
-    available: 0,
-    isPaused: false,
-  },
-  {
-    id: 'tier-general',
-    name: 'General Admission',
-    price: 25.0,
-    capacity: 200,
-    soldCount: 150,
-    reservedCount: 8,
-    available: 42,
-    isPaused: false,
-  },
-  {
-    id: 'tier-vip',
-    name: 'VIP Developer Pass',
-    price: 75.0,
-    capacity: 50,
-    soldCount: 40,
-    reservedCount: 4,
-    available: 6,
-    isPaused: false,
-  },
-];
+export interface EventOption {
+  id: string;
+  title: string;
+  tiers?: TierItem[];
+}
 
 export interface TierQuotaViewProps {
   initialEventId?: string;
@@ -89,12 +45,15 @@ export function TierQuotaView({ initialEventId }: TierQuotaViewProps) {
   const eventSelectId = useId();
   const capacityInputId = useId();
 
+  const [events, setEvents] = useState<EventOption[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>(
-    initialEventId || routeParams.eventId || routeParams.id || DEFAULT_EVENT_ID
+    initialEventId || routeParams.eventId || routeParams.id || ''
   );
-  const [eventTitle, setEventTitle] = useState<string>('BarCamp Phnom Penh 2026');
-  const [tiers, setTiers] = useState<TierItem[]>(INITIAL_FALLBACK_TIERS);
+  const [eventTitle, setEventTitle] = useState<string>('');
+  const [tiers, setTiers] = useState<TierItem[]>([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Edit Modal State
@@ -103,28 +62,93 @@ export function TierQuotaView({ initialEventId }: TierQuotaViewProps) {
   const [modalError, setModalError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
-  const fetchTiers = useCallback(async (eventId: string) => {
-    setIsLoading(true);
+  // Load real events from organizer API
+  const fetchEvents = useCallback(async () => {
+    setIsLoadingEvents(true);
     try {
-      const data = await api.get<EventMetricsResponse>(`/api/v1/organizer/events/${eventId}/metrics`);
+      let list: any[] = [];
+      try {
+        const res = await api.get<any[]>('/organizer/events');
+        list = Array.isArray(res) ? res : (res as any)?.events ?? [];
+      } catch {
+        const res = await api.get<any[]>('/api/v1/organizer/events');
+        list = Array.isArray(res) ? res : (res as any)?.events ?? [];
+      }
+
+      const mapped: EventOption[] = list.map((e: any) => ({
+        id: e.id,
+        title: e.title || 'Untitled Event',
+        tiers: (e.tiers || []).map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          price: Number(t.price),
+          capacity: t.capacity,
+          soldCount: t.soldCount || 0,
+          reservedCount: t.reservedCount || 0,
+          available: Math.max(0, t.capacity - (t.soldCount || 0) - (t.reservedCount || 0)),
+          isPaused: false,
+        })),
+      }));
+
+      setEvents(mapped);
+      if (mapped.length > 0) {
+        setSelectedEventId((curr) => {
+          if (curr && mapped.some((m) => m.id === curr)) return curr;
+          return mapped[0]?.id ?? '';
+        });
+      }
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to load organizer events.');
+    } finally {
+      setIsLoadingEvents(false);
+    }
+  }, []);
+
+  // Fetch real tiers from metrics or event details
+  const fetchTiers = useCallback(async (eventId: string) => {
+    if (!eventId) {
+      setTiers([]);
+      return;
+    }
+    setIsLoading(true);
+    setErrorMsg(null);
+    try {
+      let data: EventMetricsResponse;
+      try {
+        data = await api.get<EventMetricsResponse>(`/organizer/events/${eventId}/metrics`);
+      } catch {
+        data = await api.get<EventMetricsResponse>(`/api/v1/organizer/events/${eventId}/metrics`);
+      }
+
       if (data && Array.isArray(data.tiers)) {
         setTiers(data.tiers);
         setEventTitle(data.title || 'Event Quota Manager');
       } else {
-        throw new Error('Invalid tier response');
+        throw new Error('Invalid tier response received from server.');
       }
-    } catch {
-      // Graceful fallback to initial tiers
-      const matched = KNOWN_EVENTS.find((e) => e.id === eventId);
-      setEventTitle(matched ? matched.title : 'BarCamp Phnom Penh 2026');
-      setTiers(INITIAL_FALLBACK_TIERS);
+    } catch (err) {
+      // Fallback to tiers preloaded from listOrganizerEvents if metrics endpoint errors
+      const matched = events.find((e) => e.id === eventId);
+      if (matched && matched.tiers && matched.tiers.length > 0) {
+        setTiers(matched.tiers);
+        setEventTitle(matched.title);
+      } else {
+        setTiers([]);
+        setErrorMsg(err instanceof Error ? err.message : 'Failed to fetch tiers for this event.');
+      }
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [events]);
 
   useEffect(() => {
-    fetchTiers(selectedEventId);
+    fetchEvents();
+  }, [fetchEvents]);
+
+  useEffect(() => {
+    if (selectedEventId) {
+      fetchTiers(selectedEventId);
+    }
   }, [selectedEventId, fetchTiers]);
 
   // Toast auto-dismiss after 4 seconds
@@ -174,37 +198,44 @@ export function TierQuotaView({ initialEventId }: TierQuotaViewProps) {
     setModalError(null);
 
     try {
-      await api.patch(
-        `/api/v1/organizer/events/${selectedEventId}/tiers/${editingTier.id}/quota`,
-        { capacity: parsedCapacity }
+      try {
+        await api.patch(
+          `/organizer/events/${selectedEventId}/tiers/${editingTier.id}/quota`,
+          { capacity: parsedCapacity }
+        );
+      } catch {
+        await api.patch(
+          `/api/v1/organizer/events/${selectedEventId}/tiers/${editingTier.id}/quota`,
+          { capacity: parsedCapacity }
+        );
+      }
+
+      // Update state upon successful confirmation
+      setTiers((prev) =>
+        prev.map((t) => {
+          if (t.id === editingTier.id) {
+            const avail = Math.max(0, parsedCapacity - t.soldCount - t.reservedCount);
+            return {
+              ...t,
+              capacity: parsedCapacity,
+              available: avail,
+            };
+          }
+          return t;
+        })
       );
-    } catch {
-      // In offline/mock mode, proceed optimistically
+
+      setToastMessage(`Capacity for "${editingTier.name}" updated to ${parsedCapacity}.`);
+      handleCloseEditModal();
+    } catch (err) {
+      setModalError(err instanceof Error ? err.message : 'Failed to update quota on server.');
+    } finally {
+      setIsSaving(false);
     }
-
-    // Apply optimistic update locally
-    setTiers((prev) =>
-      prev.map((t) => {
-        if (t.id === editingTier.id) {
-          const avail = Math.max(0, parsedCapacity - t.soldCount - t.reservedCount);
-          return {
-            ...t,
-            capacity: parsedCapacity,
-            available: avail,
-          };
-        }
-        return t;
-      })
-    );
-
-    setToastMessage(`Capacity for "${editingTier.name}" updated to ${parsedCapacity}.`);
-    setIsSaving(false);
-    handleCloseEditModal();
   };
 
   const handleToggleSalesPause = (tier: TierItem) => {
     const nextPaused = !tier.isPaused;
-    // Optimistic UI update
     setTiers((prev) =>
       prev.map((t) => (t.id === tier.id ? { ...t, isPaused: nextPaused } : t))
     );
@@ -259,13 +290,18 @@ export function TierQuotaView({ initialEventId }: TierQuotaViewProps) {
               id={eventSelectId}
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="appearance-none rounded-xl border border-white/10 bg-surface-card px-4 py-2 pr-9 text-sm font-medium text-white shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 cursor-pointer"
+              disabled={isLoadingEvents || events.length === 0}
+              className="appearance-none rounded-xl border border-white/10 bg-surface-card px-4 py-2 pr-9 text-sm font-medium text-white shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 cursor-pointer disabled:opacity-50"
             >
-              {KNOWN_EVENTS.map((evt) => (
-                <option key={evt.id} value={evt.id} className="bg-surface-card text-white">
-                  {evt.title}
-                </option>
-              ))}
+              {events.length === 0 ? (
+                <option value="">{isLoadingEvents ? 'Loading events…' : 'No events found'}</option>
+              ) : (
+                events.map((evt) => (
+                  <option key={evt.id} value={evt.id} className="bg-surface-card text-white">
+                    {evt.title}
+                  </option>
+                ))
+              )}
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -277,7 +313,7 @@ export function TierQuotaView({ initialEventId }: TierQuotaViewProps) {
           <Button
             variant="secondary"
             size="md"
-            onClick={() => navigate('/organizer')}
+            onClick={() => navigate(selectedEventId ? `/organizer/events/${selectedEventId}/metrics` : '/organizer')}
             className="flex items-center gap-2"
           >
             &larr; Overview
@@ -286,7 +322,7 @@ export function TierQuotaView({ initialEventId }: TierQuotaViewProps) {
           <Button
             variant="primary"
             size="md"
-            onClick={() => navigate('/organizer/attendees')}
+            onClick={() => navigate(selectedEventId ? `/organizer/events/${selectedEventId}/attendees` : '/organizer/attendees')}
             className="flex items-center gap-2"
           >
             Attendee Roster &rarr;
@@ -294,11 +330,36 @@ export function TierQuotaView({ initialEventId }: TierQuotaViewProps) {
         </div>
       </div>
 
+      {/* Error Alert Banner */}
+      {errorMsg && (
+        <div className="flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-300">
+          <div className="flex items-center gap-2.5">
+            <svg className="h-5 w-5 flex-shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{errorMsg}</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (selectedEventId) fetchTiers(selectedEventId);
+              else fetchEvents();
+            }}
+            className="text-xs text-rose-300 hover:text-white"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
+
       {/* Summary Banner */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card className="p-4 bg-surface-card/70 border-white/10">
           <div className="text-xs font-semibold uppercase text-gray-400">Active Event</div>
-          <div className="mt-1 text-base font-bold text-white truncate">{eventTitle}</div>
+          <div className="mt-1 text-base font-bold text-white truncate">
+            {eventTitle || (events.find((e) => e.id === selectedEventId)?.title ?? 'No Event Selected')}
+          </div>
         </Card>
         <Card className="p-4 bg-surface-card/70 border-white/10">
           <div className="text-xs font-semibold uppercase text-gray-400">Total Ticket Tiers</div>

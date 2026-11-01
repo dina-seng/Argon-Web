@@ -31,169 +31,10 @@ export interface PaginatedAttendeesResponse {
   limit: number;
 }
 
-export const DEFAULT_EVENT_ID = 'b8c1a9f0-4281-4357-9d22-108191283901';
-
-export const KNOWN_EVENTS = [
-  {
-    id: DEFAULT_EVENT_ID,
-    title: 'BarCamp Phnom Penh 2026',
-  },
-  {
-    id: 'c9d2b0e1-5392-5468-0e33-219202394012',
-    title: 'Cambodia Tech Summit 2026',
-  },
-  {
-    id: 'd0e3c1f2-6403-6579-1f44-320313405123',
-    title: 'DevFest Phnom Penh 2026',
-  },
-];
-
-export const MOCK_ATTENDEES: AttendeeItem[] = [
-  {
-    id: 'att-1',
-    ticketId: 'argon_tkt_a8f9c1e2',
-    status: 'CHECKED_IN',
-    checkedInAt: '2026-11-14T10:14:00.000Z',
-    user: {
-      id: 'usr-1',
-      name: 'Sophea Mean',
-      email: 'sophea.mean@cadt.edu.kh',
-    },
-    tier: {
-      id: 'tier-vip',
-      name: 'VIP Developer Pass',
-      price: 75.0,
-    },
-    bookingId: 'bk_91823a01',
-    createdAt: '2026-11-01T08:12:00.000Z',
-  },
-  {
-    id: 'att-2',
-    ticketId: 'argon_tkt_b7d2f4a1',
-    status: 'CHECKED_IN',
-    checkedInAt: '2026-11-14T09:42:00.000Z',
-    user: {
-      id: 'usr-2',
-      name: 'Rathana Kim',
-      email: 'rathana.kim@telecom.kh',
-    },
-    tier: {
-      id: 'tier-general',
-      name: 'General Admission',
-      price: 25.0,
-    },
-    bookingId: 'bk_91823a02',
-    createdAt: '2026-11-02T11:20:00.000Z',
-  },
-  {
-    id: 'att-3',
-    ticketId: 'argon_tkt_c3e4129b',
-    status: 'CHECKED_IN',
-    checkedInAt: '2026-11-14T08:55:00.000Z',
-    user: {
-      id: 'usr-3',
-      name: 'Chantha Sok',
-      email: 'chantha.s@startup.io',
-    },
-    tier: {
-      id: 'tier-early-bird',
-      name: 'Early Bird Pass',
-      price: 15.0,
-    },
-    bookingId: 'bk_91823a03',
-    createdAt: '2026-10-25T14:05:00.000Z',
-  },
-  {
-    id: 'att-4',
-    ticketId: 'argon_tkt_83c19b02',
-    status: 'CHECKED_IN',
-    checkedInAt: '2026-11-14T10:30:00.000Z',
-    user: {
-      id: 'usr-4',
-      name: 'Bopha Chea',
-      email: 'bopha.chea@fintech.kh',
-    },
-    tier: {
-      id: 'tier-general',
-      name: 'General Admission',
-      price: 25.0,
-    },
-    bookingId: 'bk_91823a04',
-    createdAt: '2026-11-03T16:45:00.000Z',
-  },
-  {
-    id: 'att-5',
-    ticketId: 'argon_tkt_d91c784e',
-    status: 'ACTIVE',
-    checkedInAt: null,
-    user: {
-      id: 'usr-5',
-      name: 'Vibol Seng',
-      email: 'vibol.seng@techkh.com',
-    },
-    tier: {
-      id: 'tier-general',
-      name: 'General Admission',
-      price: 25.0,
-    },
-    bookingId: 'bk_91823a05',
-    createdAt: '2026-11-04T09:15:00.000Z',
-  },
-  {
-    id: 'att-6',
-    ticketId: 'argon_tkt_e23a6701',
-    status: 'ACTIVE',
-    checkedInAt: null,
-    user: {
-      id: 'usr-6',
-      name: 'Leakhena Pov',
-      email: 'leakhena.p@innovate.kh',
-    },
-    tier: {
-      id: 'tier-vip',
-      name: 'VIP Developer Pass',
-      price: 75.0,
-    },
-    bookingId: 'bk_91823a06',
-    createdAt: '2026-11-05T13:22:00.000Z',
-  },
-  {
-    id: 'att-7',
-    ticketId: 'argon_tkt_f54b9812',
-    status: 'ACTIVE',
-    checkedInAt: null,
-    user: {
-      id: 'usr-7',
-      name: 'Dara Vong',
-      email: 'dara.vong@camdev.net',
-    },
-    tier: {
-      id: 'tier-early-bird',
-      name: 'Early Bird Pass',
-      price: 15.0,
-    },
-    bookingId: 'bk_91823a07',
-    createdAt: '2026-10-26T17:30:00.000Z',
-  },
-  {
-    id: 'att-8',
-    ticketId: 'argon_tkt_01a4e872',
-    status: 'ACTIVE',
-    checkedInAt: null,
-    user: {
-      id: 'usr-8',
-      name: 'Socheata Heng',
-      email: 'socheata.h@digital.gov.kh',
-    },
-    tier: {
-      id: 'tier-general',
-      name: 'General Admission',
-      price: 25.0,
-    },
-    bookingId: 'bk_91823a08',
-    createdAt: '2026-11-06T10:00:00.000Z',
-  },
-];
+export interface EventOption {
+  id: string;
+  title: string;
+}
 
 export type CheckInFilter = 'ALL' | 'CHECKED_IN' | 'NOT_CHECKED_IN';
 
@@ -208,18 +49,59 @@ export function AttendeeRosterView({ initialEventId }: AttendeeRosterViewProps) 
   const searchInputId = useId();
   const filterSelectId = useId();
 
+  const [events, setEvents] = useState<EventOption[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>(
-    initialEventId || routeParams.eventId || routeParams.id || DEFAULT_EVENT_ID
+    initialEventId || routeParams.eventId || routeParams.id || ''
   );
-  const [attendees, setAttendees] = useState<AttendeeItem[]>(MOCK_ATTENDEES);
+  const [attendees, setAttendees] = useState<AttendeeItem[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<CheckInFilter>('ALL');
+  const [isLoadingEvents, setIsLoadingEvents] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 8;
 
+  // Load real events from organizer API
+  const fetchEvents = useCallback(async () => {
+    setIsLoadingEvents(true);
+    try {
+      let list: any[] = [];
+      try {
+        const res = await api.get<any[]>('/organizer/events');
+        list = Array.isArray(res) ? res : (res as any)?.events ?? [];
+      } catch {
+        const res = await api.get<any[]>('/api/v1/organizer/events');
+        list = Array.isArray(res) ? res : (res as any)?.events ?? [];
+      }
+
+      const mapped: EventOption[] = list.map((e: any) => ({
+        id: e.id,
+        title: e.title || 'Untitled Event',
+      }));
+
+      setEvents(mapped);
+      if (mapped.length > 0) {
+        setSelectedEventId((curr) => {
+          if (curr && mapped.some((m) => m.id === curr)) return curr;
+          return mapped[0]?.id ?? '';
+        });
+      }
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to load organizer events.');
+    } finally {
+      setIsLoadingEvents(false);
+    }
+  }, []);
+
+  // Fetch attendees for the selected event
   const fetchAttendees = useCallback(async (eventId: string, search: string) => {
+    if (!eventId) {
+      setAttendees([]);
+      return;
+    }
     setIsLoading(true);
+    setErrorMsg(null);
     try {
       const queryParams = new URLSearchParams({
         page: '1',
@@ -228,36 +110,39 @@ export function AttendeeRosterView({ initialEventId }: AttendeeRosterViewProps) 
       if (search.trim()) {
         queryParams.set('search', search.trim());
       }
-      const data = await api.get<PaginatedAttendeesResponse>(
-        `/api/v1/organizer/events/${eventId}/attendees?${queryParams.toString()}`
-      );
+
+      let data: PaginatedAttendeesResponse;
+      try {
+        data = await api.get<PaginatedAttendeesResponse>(
+          `/organizer/events/${eventId}/attendees?${queryParams.toString()}`
+        );
+      } catch {
+        data = await api.get<PaginatedAttendeesResponse>(
+          `/api/v1/organizer/events/${eventId}/attendees?${queryParams.toString()}`
+        );
+      }
+
       if (data && Array.isArray(data.attendees)) {
         setAttendees(data.attendees);
       } else {
-        throw new Error('Invalid attendee response');
+        throw new Error('Invalid attendee roster response from server.');
       }
-    } catch {
-      // Graceful fallback to mock data with local search matching
-      if (search.trim()) {
-        const term = search.trim().toLowerCase();
-        setAttendees(
-          MOCK_ATTENDEES.filter(
-            (a) =>
-              a.user?.name.toLowerCase().includes(term) ||
-              a.user?.email.toLowerCase().includes(term) ||
-              a.ticketId.toLowerCase().includes(term)
-          )
-        );
-      } else {
-        setAttendees(MOCK_ATTENDEES);
-      }
+    } catch (err) {
+      setAttendees([]);
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to load attendee roster from server.');
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchAttendees(selectedEventId, searchTerm);
+    fetchEvents();
+  }, [fetchEvents]);
+
+  useEffect(() => {
+    if (selectedEventId) {
+      fetchAttendees(selectedEventId, searchTerm);
+    }
   }, [selectedEventId, searchTerm, fetchAttendees]);
 
   // Client-side filtering by check-in status
@@ -313,7 +198,7 @@ export function AttendeeRosterView({ initialEventId }: AttendeeRosterViewProps) 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `argon_attendees_${selectedEventId}.csv`);
+    link.setAttribute('download', `argon_attendees_${selectedEventId || 'all'}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -347,13 +232,18 @@ export function AttendeeRosterView({ initialEventId }: AttendeeRosterViewProps) 
                 setSelectedEventId(e.target.value);
                 setCurrentPage(1);
               }}
-              className="appearance-none rounded-xl border border-white/10 bg-surface-card px-4 py-2 pr-9 text-sm font-medium text-white shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 cursor-pointer"
+              disabled={isLoadingEvents || events.length === 0}
+              className="appearance-none rounded-xl border border-white/10 bg-surface-card px-4 py-2 pr-9 text-sm font-medium text-white shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 cursor-pointer disabled:opacity-50"
             >
-              {KNOWN_EVENTS.map((evt) => (
-                <option key={evt.id} value={evt.id} className="bg-surface-card text-white">
-                  {evt.title}
-                </option>
-              ))}
+              {events.length === 0 ? (
+                <option value="">{isLoadingEvents ? 'Loading events…' : 'No events found'}</option>
+              ) : (
+                events.map((evt) => (
+                  <option key={evt.id} value={evt.id} className="bg-surface-card text-white">
+                    {evt.title}
+                  </option>
+                ))
+              )}
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -365,7 +255,7 @@ export function AttendeeRosterView({ initialEventId }: AttendeeRosterViewProps) 
           <Button
             variant="secondary"
             size="md"
-            onClick={() => navigate('/organizer')}
+            onClick={() => navigate(selectedEventId ? `/organizer/events/${selectedEventId}/metrics` : '/organizer')}
             className="flex items-center gap-2"
           >
             &larr; Overview
@@ -375,6 +265,7 @@ export function AttendeeRosterView({ initialEventId }: AttendeeRosterViewProps) 
             variant="secondary"
             size="md"
             onClick={handleExportCsv}
+            disabled={filteredAttendees.length === 0}
             className="flex items-center gap-2"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -384,6 +275,29 @@ export function AttendeeRosterView({ initialEventId }: AttendeeRosterViewProps) 
           </Button>
         </div>
       </div>
+
+      {/* Error Alert Banner */}
+      {errorMsg && (
+        <div className="flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-300">
+          <div className="flex items-center gap-2.5">
+            <svg className="h-5 w-5 flex-shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{errorMsg}</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (selectedEventId) fetchAttendees(selectedEventId, searchTerm);
+              else fetchEvents();
+            }}
+            className="text-xs text-rose-300 hover:text-white"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
 
       {/* Metrics Mini-Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -538,7 +452,9 @@ export function AttendeeRosterView({ initialEventId }: AttendeeRosterViewProps) 
         {/* Empty state */}
         {paginatedAttendees.length === 0 && !isLoading && (
           <div className="py-12 text-center text-gray-400">
-            No attendees match the specified filter or query.
+            {events.length === 0
+              ? 'No events found for this organizer account.'
+              : 'No attendees match the specified filter or query.'}
           </div>
         )}
 
