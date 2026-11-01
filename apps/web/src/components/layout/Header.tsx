@@ -163,11 +163,11 @@ export function Header({ onToggleSidebar }: HeaderProps = {}) {
                 }`}
               >
                 <Shield className="w-4 h-4 text-indigo-400" />
-                <span>Admin</span>
+                <span>Admin Console</span>
               </Link>
             )}
 
-            {isOrganizer && (
+            {(isOrganizer || isAdmin) && (
               <Link
                 to="/organizer"
                 className={`relative py-5 transition-colors flex items-center gap-1.5 ${
@@ -177,7 +177,7 @@ export function Header({ onToggleSidebar }: HeaderProps = {}) {
                 }`}
               >
                 <LayoutDashboard className="w-4 h-4 text-emerald-400" />
-                <span>Organizer</span>
+                <span>Organizer Portal</span>
               </Link>
             )}
           </nav>
@@ -256,7 +256,7 @@ export function Header({ onToggleSidebar }: HeaderProps = {}) {
                         >
                           <span className="flex items-center gap-2">
                             <LayoutDashboard className="w-3.5 h-3.5" />
-                            Organizer Dashboard
+                            Organizer Portal
                           </span>
                         </button>
                       )}

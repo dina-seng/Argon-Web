@@ -3,7 +3,7 @@ import { Role } from '@argon/shared';
 
 // Layout & Guards
 import { AdminLayout } from './components/layout/AdminLayout';
-import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { ProtectedRoute } from './features/auth/ProtectedRoute';
 
 // Public & Customer Feature Views (from main)
 import EventCatalogPage from './features/discovery/EventCatalogPage';
@@ -64,28 +64,27 @@ export default function AppRoutes() {
       <Route path="/register" element={<RegisterPage />} />
 
       {/* ==================================================================== */}
-      {/* BOOKING & PAYMENT FLOW (CUSTOMER)                                    */}
+      {/* CUSTOMER PROTECTED ROUTES (LOGGED-IN SESSION REQUIRED)               */}
       {/* ==================================================================== */}
-      <Route path="/checkout/:tierId" element={<CheckoutPage />} />
-      <Route path="/checkout/:tierId/payment" element={<PaymentPage />} />
-      <Route path="/checkout/payment" element={<PaymentPage />} />
-      <Route path="/payment/:bookingId" element={<PaymentPage />} />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/checkout/:tierId" element={<CheckoutPage />} />
+        <Route path="/checkout/:tierId/payment" element={<PaymentPage />} />
+        <Route path="/checkout/payment" element={<PaymentPage />} />
+        <Route path="/payment/:bookingId" element={<PaymentPage />} />
+        <Route path="/tickets" element={<MyTicketsPage />} />
+        <Route path="/tickets/:id" element={<QrPassPage />} />
+      </Route>
 
       {/* ==================================================================== */}
-      {/* CUSTOMER TICKET & QR PASS FLOW                                       */}
+      {/* STANDALONE MOBILE SCANNER (ORGANIZER & ADMIN ROLES)                  */}
       {/* ==================================================================== */}
-      <Route path="/tickets" element={<MyTicketsPage />} />
-      <Route path="/tickets/:id" element={<QrPassPage />} />
+      <Route element={<ProtectedRoute allowedRoles={[Role.ORGANIZER, Role.ADMIN]} />}>
+        <Route path="/scanner" element={<ScannerPage />} />
+        <Route path="/organizer/scan" element={<ScannerPage />} />
+      </Route>
 
       {/* ==================================================================== */}
-      {/* ORGANIZER SCANNER (STANDALONE GATE CLIENT)                          */}
-      {/* ==================================================================== */}
-      <Route path="/organizer/scanner" element={<ScannerPage />} />
-      <Route path="/organizer/scan" element={<ScannerPage />} />
-      <Route path="/scanner" element={<ScannerPage />} />
-
-      {/* ==================================================================== */}
-      {/* ORGANIZER PORTAL SUITE (ORGANIZER & ADMIN ROLES)                     */}
+      {/* ORGANIZER PORTAL SUITE (ORGANIZER & ADMIN ROLES UNDER ADMINLAYOUT)   */}
       {/* ==================================================================== */}
       <Route
         element={
@@ -101,6 +100,7 @@ export default function AppRoutes() {
         <Route path="/organizer/events/:id/tiers" element={<TierQuotaView />} />
         <Route path="/organizer/attendees" element={<AttendeeRosterView />} />
         <Route path="/organizer/events/:id/attendees" element={<AttendeeRosterView />} />
+        <Route path="/organizer/scanner" element={<ScannerPage />} />
         <Route path="/organizer/events/new" element={<PlaceholderPage name="Create Event" />} />
         <Route path="/organizer/events/:id" element={<PlaceholderPage name="Edit Event" />} />
         <Route path="/organizer/events/:id/bookings" element={<PlaceholderPage name="Bookings Table" />} />
@@ -108,7 +108,7 @@ export default function AppRoutes() {
       </Route>
 
       {/* ==================================================================== */}
-      {/* SUPER-ADMIN GOVERNANCE (ADMIN ROLE ONLY)                             */}
+      {/* SUPER-ADMIN GOVERNANCE (ADMIN ROLE ONLY UNDER ADMINLAYOUT)           */}
       {/* ==================================================================== */}
       <Route
         element={
