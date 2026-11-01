@@ -1,15 +1,9 @@
 /**
- * lib/api.ts – typed API client for the Argon REST API.
- * Attaches the Bearer token from session storage.
- * TODO: Handle 401 refresh once the auth module issues refresh tokens.
- * Axios client for the Argon REST API.
- * Adds the current tab's Bearer token and clears expired sessions on 401.
+ * Typed Axios client for the Argon REST API.
+ * Adds the current tab's access token and clears expired sessions on 401.
  */
 import axios, { type AxiosError } from 'axios';
 import { clearAccessToken, clearToken, getToken } from './auth';
-
-import type { ApiError } from '@argon/shared';
-import { getToken } from './auth';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
 const client = axios.create({ baseURL: BASE_URL, headers: { Accept: 'application/json' } });
@@ -25,25 +19,6 @@ export class ApiRequestError extends Error {
   }
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = getToken();
-  const headers = new Headers(options.headers);
-  if (token) headers.set('Authorization', `Bearer ${token}`);
-  if (options.body !== undefined) headers.set('Content-Type', 'application/json');
-
-  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as Partial<ApiError> | null;
-    throw new ApiRequestError(res.status, body?.message ?? `API error ${res.status}`);
-  }
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
-}
-
-export const api = {
-  get: <T>(path: string) => request<T>(path),
-  post: <T>(path: string, body: unknown) => request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
-  patch: <T>(path: string, body: unknown) => request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
 client.interceptors.request.use((config) => {
   const token = getToken();
   if (token) config.headers.set('Authorization', `Bearer ${token}`);
@@ -57,11 +32,12 @@ client.interceptors.response.use(
       if (error.config?.url === '/auth/refresh') clearToken();
       else clearAccessToken();
     }
+
     if (error.response) {
-      const status = error.response.status;
-      const message = error.response.data?.message;
-      return Promise.reject(new Error(`API error ${status}${message ? `: ${message}` : ''}`));
+      const { status, data } = error.response;
+      return Promise.reject(new ApiRequestError(status, data?.message ?? `API error ${status}`));
     }
+
     return Promise.reject(new TypeError("Can't reach the server. Check your connection and try again."));
   },
 );
@@ -69,4 +45,5 @@ client.interceptors.response.use(
 export const api = {
   get: async <T>(path: string): Promise<T> => (await client.get<T>(path)).data,
   post: async <T>(path: string, body: unknown): Promise<T> => (await client.post<T>(path, body)).data,
+  patch: async <T>(path: string, body: unknown): Promise<T> => (await client.patch<T>(path, body)).data,
 };
