@@ -5,6 +5,12 @@ import EventCatalogPage from './features/discovery/EventCatalogPage';
 import EventDetailPage from './features/discovery/EventDetailPage';
 import DashboardPage from './features/organizer/DashboardPage';
 import EventFormPage from './features/organizer/EventFormPage';
+
+import CheckoutPage from './features/booking/CheckoutPage';
+import PaymentPage from './features/booking/PaymentPage';
+import MyTicketsPage from './features/tickets/MyTicketsPage';
+import QrPassPage from './features/tickets/QrPassPage';
+import ScannerPage from './features/organizer/ScannerPage';
 import LoginPage from './features/auth/LoginPage';
 import RegisterPage from './features/auth/RegisterPage';
 import { ProtectedRoute } from './features/auth/ProtectedRoute';
@@ -30,6 +36,25 @@ const PlaceholderPage = ({ name }: { name: string }) => (
 export default function AppRoutes() {
   return (
     <Routes>
+      {/* Discovery & Home */}
+      <Route path="/" element={<EventCatalogPage />} />
+      <Route path="/events" element={<EventCatalogPage />} />
+
+      {/* Booking & Payment Flow */}
+      <Route path="/checkout/:tierId" element={<CheckoutPage />} />
+      <Route path="/checkout/:tierId/payment" element={<PaymentPage />} />
+      <Route path="/checkout/payment" element={<PaymentPage />} />
+      <Route path="/payment/:bookingId" element={<PaymentPage />} />
+
+      {/* Customer Ticket & QR Pass Flow */}
+      <Route path="/tickets" element={<MyTicketsPage />} />
+      <Route path="/tickets/:id" element={<QrPassPage />} />
+
+      {/* Organizer Scanner Flow */}
+      <Route path="/organizer/scanner" element={<ScannerPage />} />
+      <Route path="/organizer/scan" element={<ScannerPage />} />
+      <Route path="/organizer" element={<ScannerPage />} />
+      <Route path="/scanner" element={<ScannerPage />} />
       {/* Public */}
       <Route element={<PublicLayout />}>
         <Route path="/" element={<EventCatalogPage />} />

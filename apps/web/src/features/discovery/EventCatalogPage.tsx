@@ -1,250 +1,162 @@
-/**
- * features/discovery/EventCatalogPage.tsx
- * Customer feed of upcoming published events with category, date and keyword filters.
- * Filters live in the URL (?category=MUSIC&date=weekend&q=jazz) so views can be shared.
- */
-import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { EVENTS_PAGE_SIZE, EventCategory } from '@argon/shared';
-import type { PaginatedResponse, PublicEvent } from '@argon/shared';
-import { api } from '@/lib/api';
-import { CATEGORY_LABELS } from '@/lib/eventLabels';
-import { Button } from '@/components/ui/Button';
-import { Icon } from '@/components/ui/Icon';
-import { DATE_PRESETS, isDatePreset, presetRange } from './datePresets';
-import type { DatePreset } from './datePresets';
-import { EventCard } from './EventCard';
-import { SearchBar } from './SearchBar';
-
-interface Filters {
-  category: EventCategory | null;
-  date: DatePreset;
-  q: string;
-}
-
-type FeedState =
-  | { kind: 'loading' }
-  | { kind: 'error'; message: string }
-  | { kind: 'ready'; events: PublicEvent[]; total: number; page: number; loadingMore: boolean };
-
-function readFilters(params: URLSearchParams): Filters {
-  const category = params.get('category');
-  const date = params.get('date');
-  return {
-    category: Object.values<string>(EventCategory).includes(category ?? '') ? (category as EventCategory) : null,
-    date: isDatePreset(date) ? date : 'any',
-    q: params.get('q') ?? '',
-  };
-}
-
-function feedUrl(filters: Filters, page: number): string {
-  const query = new URLSearchParams({ page: String(page), pageSize: String(EVENTS_PAGE_SIZE) });
-  if (filters.category) query.set('category', filters.category);
-  if (filters.q) query.set('q', filters.q);
-  const { from, to } = presetRange(filters.date);
-  if (from) query.set('from', from);
-  if (to) query.set('to', to);
-  return `/events?${query}`;
-}
+import { Link } from 'react-router-dom';
+import { useTicketingStore } from '../../hooks/useTicketingStore';
+import { Header } from '../../components/layout/Header';
+import { Footer } from '../../components/layout/Footer';
+import {
+  Calendar,
+  MapPin,
+  Ticket,
+  Sparkles,
+  ArrowRight,
+  QrCode
+} from 'lucide-react';
 
 export default function EventCatalogPage() {
-  const [params, setParams] = useSearchParams();
-  const filters = readFilters(params);
-  const { category, date, q } = filters;
-  const hasFilters = category !== null || date !== 'any' || q !== '';
-
-  const [state, setState] = useState<FeedState>({ kind: 'loading' });
-  // Ignore responses from requests that a newer filter change has superseded.
-  const requestId = useRef(0);
-
-  useEffect(() => {
-    const id = ++requestId.current;
-    setState({ kind: 'loading' });
-    api
-      .get<PaginatedResponse<PublicEvent>>(feedUrl({ category, date, q }, 1))
-      .then((res) => {
-        if (id === requestId.current) setState({ kind: 'ready', events: res.data, total: res.total, page: 1, loadingMore: false });
-      })
-      .catch((error: Error) => {
-        if (id === requestId.current) setState({ kind: 'error', message: error.message });
-      });
-  }, [category, date, q]);
-
-  async function loadMore() {
-    if (state.kind !== 'ready') return;
-    const id = requestId.current;
-    const nextPage = state.page + 1;
-    setState({ ...state, loadingMore: true });
-    try {
-      const res = await api.get<PaginatedResponse<PublicEvent>>(feedUrl(filters, nextPage));
-      if (id !== requestId.current) return;
-      setState((s) =>
-        s.kind === 'ready'
-          ? { kind: 'ready', events: [...s.events, ...res.data], total: res.total, page: nextPage, loadingMore: false }
-          : s,
-      );
-    } catch {
-      if (id === requestId.current) setState((s) => (s.kind === 'ready' ? { ...s, loadingMore: false } : s));
-    }
-  }
-
-  function setFilter(key: keyof Filters, value: string | null) {
-    const next = new URLSearchParams(params);
-    if (value) next.set(key, value);
-    else next.delete(key);
-    // Typing in search shouldn't add a history entry per keystroke.
-    setParams(next, { replace: key === 'q' });
-  }
+  const { events } = useTicketingStore();
 
   return (
-    <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-3">
-        <p className="text-xs font-semibold leading-[1.5] text-accent">Explore Cambodia</p>
-        <h1 className="text-[32px] font-bold leading-[1.25] text-fg sm:text-[40px]">Discover local events</h1>
-        <p className="text-base leading-[1.5] text-fg-muted">
-          Concerts, food, sports, workshops and more happening near you.
-        </p>
-      </header>
+    <div className="min-h-screen bg-[#090a10] text-zinc-100 flex flex-col font-sans">
+      <Header />
 
-      <section className="flex flex-col gap-4" aria-label="Search and filters">
-        <h2 className="text-sm font-semibold leading-[1.5] text-fg">Find your next event</h2>
-        <SearchBar value={q} onSearch={(value) => setFilter('q', value || null)} />
-
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <div
-            role="group"
-            aria-label="Category"
-            className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0 sm:pb-0"
-          >
-            <Pill pressed={category === null} onClick={() => setFilter('category', null)}>
-              All events
-            </Pill>
-            {Object.values(EventCategory).map((c) => (
-              <Pill key={c} pressed={category === c} onClick={() => setFilter('category', c)}>
-                {CATEGORY_LABELS[c]}
-              </Pill>
-            ))}
-          </div>
-          <DateSelect value={date} onChange={(value) => setFilter('date', value === 'any' ? null : value)} />
-        </div>
-      </section>
-
-      {state.kind === 'loading' && <FeedSkeleton />}
-
-      {state.kind === 'error' && (
-        <Message title="Couldn't load events" text={state.message} />
-      )}
-
-      {state.kind === 'ready' && (
-        <>
-          <div className="flex items-baseline justify-between gap-4">
-            <h2 className="text-2xl font-bold leading-[1.25] text-fg">Upcoming events</h2>
-            <p className="shrink-0 text-sm leading-[17px] text-fg-muted" aria-live="polite">
-              {state.total === 0
-                ? 'No events'
-                : `Showing ${state.events.length} of ${state.total} ${state.total === 1 ? 'event' : 'events'}`}
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        {/* Hero Section */}
+        <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-[#191533] via-[#131422] to-[#0c0d16] border border-white/[0.08] p-8 sm:p-12 mb-12 shadow-2xl">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-950/60 text-primary-300 border border-primary-800/50 text-xs font-semibold mb-4">
+              <Sparkles className="w-3.5 h-3.5 text-primary-400" />
+              <span>Cambodia’s Digital Event Pass Platform</span>
+            </div>
+            <h1 className="font-display text-4xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+              Quiet interface. <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-primary-400 to-fuchsia-400">
+                Loud nights.
+              </span>
+            </h1>
+            <p className="mt-4 text-zinc-300 text-sm sm:text-base leading-relaxed">
+              Instant KHQR bank checkout, fraud-proof digital ticket passes, and sub-second gate check-in for Phnom Penh’s most coveted rooftop gatherings, music, and creative sessions.
             </p>
+
+            <div className="mt-8 flex flex-wrap gap-4 items-center">
+              <Link
+                to="/checkout/tier-rooftop-ga"
+                className="px-6 py-3 rounded-xl bg-[#7857ff] hover:bg-[#6b47ff] text-white font-semibold text-sm transition shadow-lg shadow-purple-950/40 flex items-center gap-2"
+              >
+                <span>Book Rooftop Session</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+
+              <Link
+                to="/tickets"
+                className="px-6 py-3 rounded-xl bg-[#181926] hover:bg-[#222438] border border-zinc-700/80 text-white font-semibold text-sm transition flex items-center gap-2"
+              >
+                <Ticket className="w-4 h-4 text-zinc-400" />
+                <span>My Tickets</span>
+              </Link>
+
+              <Link
+                to="/organizer/scanner"
+                className="px-6 py-3 rounded-xl bg-purple-950/30 hover:bg-purple-900/40 border border-purple-800/50 text-purple-300 font-semibold text-sm transition flex items-center gap-2"
+              >
+                <QrCode className="w-4 h-4 text-purple-400" />
+                <span>Gate Scanner</span>
+              </Link>
+            </div>
           </div>
+        </div>
 
-          {state.events.length === 0 ? (
-            <Message
-              title="No events match"
-              text={hasFilters ? 'Try a different search, category or date.' : 'There are no upcoming events yet. Check back soon.'}
-              action={
-                hasFilters && (
-                  <Button variant="secondary" onClick={() => setParams({})}>
-                    Clear filters
-                  </Button>
-                )
-              }
-            />
-          ) : (
-            <>
-              <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {state.events.map((event) => (
-                  <li key={event.id}>
-                    <EventCard event={event} />
-                  </li>
-                ))}
-              </ul>
-              {state.events.length < state.total ? (
-                <div className="flex justify-center">
-                  <Button variant="secondary" onClick={loadMore} isLoading={state.loadingMore}>
-                    Load more events
-                  </Button>
+        {/* Featured Events Grid */}
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="font-display text-2xl font-bold text-white">Upcoming Gatherings</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">Explore curated local events in Phnom Penh</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {events.map((evt) => {
+            const gaTier = evt.tiers[0];
+            const isCompleted = evt.status === 'COMPLETED';
+
+            return (
+              <div
+                key={evt.id}
+                className="bg-[#12131b] border border-white/[0.08] hover:border-white/[0.18] rounded-2xl overflow-hidden shadow-xl flex flex-col transition group"
+              >
+                {/* Image */}
+                <div className="aspect-[16/9] w-full bg-zinc-900 relative overflow-hidden">
+                  <img
+                    src={evt.imageUrl}
+                    alt={evt.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute top-3 right-3">
+                    {isCompleted ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-zinc-900/90 text-zinc-400 border border-zinc-700">
+                        Past Event
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-950/90 text-emerald-400 border border-emerald-800">
+                        Selling Fast
+                      </span>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <p className="text-center text-sm leading-[1.5] text-fg-muted">You&apos;ve reached the end of the list.</p>
-              )}
-            </>
-          )}
-        </>
-      )}
+
+                {/* Body */}
+                <div className="p-5 flex-1 flex flex-col justify-between">
+                  <div>
+                    <h3 className="font-display text-lg font-bold text-white group-hover:text-primary-300 transition-colors">
+                      {evt.title}
+                    </h3>
+                    <p className="text-xs text-zinc-400 mt-2 line-clamp-2 leading-relaxed">
+                      {evt.description}
+                    </p>
+
+                    <div className="mt-4 space-y-1.5 text-xs text-zinc-400">
+                      <p className="flex items-center gap-2">
+                        <Calendar className="w-3.5 h-3.5 text-zinc-500" />
+                        <span>{evt.formattedDate} · {evt.formattedTime}</span>
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <MapPin className="w-3.5 h-3.5 text-zinc-500" />
+                        <span>{evt.venue}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 pt-4 border-t border-zinc-800/80 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-zinc-500 uppercase font-bold block">From</span>
+                      <span className="font-bold text-white text-base">
+                        ${gaTier ? gaTier.price.toFixed(2) : '18.00'} <span className="text-xs text-zinc-400 font-normal">USD</span>
+                      </span>
+                    </div>
+
+                    {isCompleted ? (
+                      <Link
+                        to="/tickets"
+                        className="px-4 py-2 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-xl transition"
+                      >
+                        View in Passes
+                      </Link>
+                    ) : (
+                      <Link
+                        to={`/checkout/${gaTier ? gaTier.id : 'tier-rooftop-ga'}`}
+                        className="px-4 py-2 bg-[#7857ff] hover:bg-[#6b47ff] text-white text-xs font-semibold rounded-xl transition shadow-md shadow-purple-950/30 flex items-center gap-1.5"
+                      >
+                        <span>Get Tickets</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </main>
+
+      <Footer />
     </div>
-  );
-}
-
-function Pill({ pressed, onClick, children }: { pressed: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={pressed}
-      onClick={onClick}
-      className={[
-        'inline-flex h-12 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-semibold leading-[17px] transition-colors',
-        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-        pressed
-          ? 'border-2 border-accent bg-accent-soft text-accent'
-          : 'border border-line-strong bg-surface-card text-fg hover:border-fg-muted',
-      ].join(' ')}
-    >
-      {pressed && <Icon name="check" size={16} />}
-      {children}
-    </button>
-  );
-}
-
-function DateSelect({ value, onChange }: { value: DatePreset; onChange: (value: DatePreset) => void }) {
-  return (
-    <div className="relative flex items-center gap-2 text-sm text-fg-muted lg:ml-auto">
-      <Icon name="calendar" className="pointer-events-none absolute left-0" />
-      <label htmlFor="date-filter" className="sr-only">
-        Date
-      </label>
-      <select
-        id="date-filter"
-        value={value}
-        onChange={(e) => onChange(e.target.value as DatePreset)}
-        className="h-12 cursor-pointer appearance-none bg-transparent pl-7 pr-6 leading-[17px] text-fg-muted hover:text-fg focus:outline-none focus-visible:text-fg"
-      >
-        {DATE_PRESETS.map((p) => (
-          <option key={p.value} value={p.value} className="bg-surface-card text-fg">
-            {p.label}
-          </option>
-        ))}
-      </select>
-      <Icon name="chevronDown" size={16} className="pointer-events-none absolute right-0" />
-    </div>
-  );
-}
-
-function Message({ title, text, action }: { title: string; text: string; action?: ReactNode }) {
-  return (
-    <div className="flex flex-col items-center gap-2 rounded-lg border border-line bg-surface-card px-6 py-12 text-center">
-      <h2 className="text-xl font-bold text-fg">{title}</h2>
-      <p className="text-sm text-fg-muted">{text}</p>
-      {action && <div className="mt-2">{action}</div>}
-    </div>
-  );
-}
-
-function FeedSkeleton() {
-  return (
-    <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading events">
-      {Array.from({ length: 6 }, (_, i) => (
-        <li key={i} className="h-[380px] animate-pulse rounded-lg border border-line bg-surface-card" />
-      ))}
-    </ul>
   );
 }
