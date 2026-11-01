@@ -475,7 +475,7 @@ describe('Admin Governance Module (/api/v1/admin)', () => {
             bookingId,
             eventId,
             status: TicketStatus.ACTIVE,
-            qrToken: expect.stringMatching(/^argon_force_/),
+            qrToken: expect.stringMatching(/^[0-9a-f-]+:[0-9a-f]{64}$/),
           }),
         ]),
       });

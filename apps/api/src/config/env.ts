@@ -20,7 +20,8 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('15m'),
   CLIENT_URL: z.string().default('http://localhost:5173'),
   SCANNER_URL: z.string().default('http://localhost:5174'),
-  QR_SIGNING_SECRET: z.string().min(32).default('argon_qr_signing_secret_min_32_chars_dev_only'),
+  QR_SIGNING_SECRET: z.string().min(32).default(process.env['QR_HMAC_SECRET'] ?? 'argon_qr_signing_secret_min_32_chars_dev_only'),
+  QR_HMAC_SECRET: z.string().min(32).default(process.env['QR_SIGNING_SECRET'] ?? 'argon_qr_signing_secret_min_32_chars_dev_only'),
   PAYMENT_GATEWAY_BASE_URL: z.string().default('https://payment-sandbox.example.com'),
   PAYMENT_WEBHOOK_SECRET: z.string().min(16).default('argon_webhook_secret_dev'),
 });

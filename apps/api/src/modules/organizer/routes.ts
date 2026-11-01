@@ -6,6 +6,7 @@ import {
   updateTierQuotaController,
   getAttendeesController,
   issueStaffController,
+  listOrganizerEventsController,
 } from './controller';
 import {
   getEventMetricsParamsSchema,
@@ -17,6 +18,14 @@ import {
 
 export async function organizerRoutes(app: FastifyInstance) {
   const organizerAuth = [app.authenticate, app.authorize([Role.ORGANIZER, Role.ADMIN])];
+
+  app.get(
+    '/events',
+    {
+      preHandler: organizerAuth,
+    },
+    listOrganizerEventsController
+  );
 
   app.get(
     '/events/:eventId/metrics',

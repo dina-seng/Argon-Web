@@ -10,6 +10,8 @@ import {
   Prisma,
 } from '@prisma/client';
 import type { GetUsersQuery, GetAuditLogsQuery, AdminBookingsQuery } from './schema';
+import { generateHmacSignature } from '../../lib/hmac.js';
+import { env } from '../../config/env.js';
 
 export class HttpError extends Error {
   statusCode: number;
@@ -222,12 +224,17 @@ export async function forceConfirmBooking(
     });
 
     if (booking.tickets.length === 0) {
-      const ticketsToCreate = Array.from({ length: booking.quantity }).map(() => ({
-        bookingId: booking.id,
-        eventId: booking.eventId,
-        status: TicketStatus.ACTIVE,
-        qrToken: `argon_force_${crypto.randomUUID()}`,
-      }));
+      const ticketsToCreate = Array.from({ length: booking.quantity }).map(() => {
+        const ticketId = crypto.randomUUID();
+        const signature = generateHmacSignature(ticketId, env.QR_HMAC_SECRET);
+        return {
+          id: ticketId,
+          bookingId: booking.id,
+          eventId: booking.eventId,
+          status: TicketStatus.ACTIVE,
+          qrToken: `${ticketId}:${signature}`,
+        };
+      });
 
       await tx.ticket.createMany({
         data: ticketsToCreate,

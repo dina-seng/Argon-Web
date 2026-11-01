@@ -14,6 +14,8 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vites
 import type { FastifyInstance } from 'fastify';
 import { Role, TicketStatus } from '@prisma/client';
 import { buildApp } from '../../src/app';
+import { verifyHmacSignature } from '../../src/lib/hmac';
+import { env } from '../../src/config/env';
 
 describe('Security Boundary & Multi-Tenant Regression Suite', () => {
   let app: FastifyInstance;
@@ -170,6 +172,31 @@ describe('Security Boundary & Multi-Tenant Regression Suite', () => {
         error: 'Unauthorized',
       });
     });
+
+    it('returns 401 Unauthorized for POST /api/v1/checkin/scan without token', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/checkin/scan',
+        payload: { qrToken: 'test-token', scannedBy: 'Gate 1' },
+      });
+
+      expect(res.statusCode).toBe(401);
+      expect(res.json()).toMatchObject({
+        error: 'Unauthorized',
+      });
+    });
+
+    it('returns 401 Unauthorized for GET /api/v1/checkin/roster/:eventId without token', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/v1/checkin/roster/${eventAId}`,
+      });
+
+      expect(res.statusCode).toBe(401);
+      expect(res.json()).toMatchObject({
+        error: 'Unauthorized',
+      });
+    });
   });
 
   // ── 2. Vertical Privilege Escalation Protection ─────────────────────────────
@@ -266,6 +293,35 @@ describe('Security Boundary & Multi-Tenant Regression Suite', () => {
           url: `/api/v1/organizer/events/${eventAId}/tiers/${tierAId}/quota`,
           headers: { authorization: `Bearer ${customerToken}` },
           payload: { capacity: 200 },
+        });
+
+        expect(res.statusCode).toBe(403);
+        expect(res.json()).toMatchObject({
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
+        });
+      });
+
+      it('returns 403 Forbidden when CUSTOMER accesses /api/v1/checkin/scan', async () => {
+        const res = await app.inject({
+          method: 'POST',
+          url: '/api/v1/checkin/scan',
+          headers: { authorization: `Bearer ${customerToken}` },
+          payload: { qrToken: 'test-token', scannedBy: 'Gate 1' },
+        });
+
+        expect(res.statusCode).toBe(403);
+        expect(res.json()).toMatchObject({
+          error: 'Forbidden',
+          message: 'Insufficient permissions',
+        });
+      });
+
+      it('returns 403 Forbidden when CUSTOMER accesses /api/v1/checkin/roster/:eventId', async () => {
+        const res = await app.inject({
+          method: 'GET',
+          url: `/api/v1/checkin/roster/${eventAId}`,
+          headers: { authorization: `Bearer ${customerToken}` },
         });
 
         expect(res.statusCode).toBe(403);
@@ -682,10 +738,17 @@ describe('Security Boundary & Multi-Tenant Regression Suite', () => {
             bookingId,
             eventId: eventAId,
             status: TicketStatus.ACTIVE,
-            qrToken: expect.stringMatching(/^argon_force_/),
+            qrToken: expect.stringMatching(/^[0-9a-f-]+:[0-9a-f]{64}$/),
           }),
         ]),
       });
+
+      // Verify HMAC signatures of created tickets
+      const createdTicketsCall = ticketCreateManySpy.mock.calls[0]?.[0]?.data as Array<{ id: string; qrToken: string }>;
+      expect(createdTicketsCall).toHaveLength(2);
+      for (const ticket of createdTicketsCall) {
+        expect(verifyHmacSignature(ticket.qrToken, env.QR_HMAC_SECRET)).toBe(true);
+      }
       expect(tierUpdateSpy).toHaveBeenCalledWith({
         where: { id: tierAId },
         data: { soldCount: { increment: 2 } },

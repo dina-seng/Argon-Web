@@ -84,6 +84,34 @@ describe('Organizer Module (/organizer)', () => {
         message: 'Insufficient permissions',
       });
     });
+
+    it('returns 401 Unauthorized for GET /organizer/events without token', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/organizer/events',
+      });
+
+      expect(res.statusCode).toBe(401);
+      expect(res.json()).toMatchObject({
+        error: 'Unauthorized',
+      });
+    });
+
+    it('returns 403 Forbidden when CUSTOMER accesses GET /organizer/events', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/organizer/events',
+        headers: {
+          authorization: `Bearer ${customerToken}`,
+        },
+      });
+
+      expect(res.statusCode).toBe(403);
+      expect(res.json()).toMatchObject({
+        error: 'Forbidden',
+        message: 'Insufficient permissions',
+      });
+    });
   });
 
   describe('GET /organizer/events/:eventId/metrics', () => {
@@ -489,6 +517,174 @@ describe('Organizer Module (/organizer)', () => {
         statusCode: 501,
         error: 'Not Implemented',
       });
+    });
+  });
+
+  describe('GET /organizer/events', () => {
+    const mockOrganizer1Events = [
+      {
+        id: event1Id,
+        organizerId: organizer1Id,
+        title: 'Argon Tech Summit 2026',
+        description: 'Flagship tech event',
+        venue: 'Phnom Penh Center',
+        startsAt: new Date('2026-11-15T09:00:00Z'),
+        status: 'PUBLISHED',
+        createdAt: new Date('2026-10-01T00:00:00Z'),
+        updatedAt: new Date('2026-10-01T00:00:00Z'),
+        tiers: [
+          {
+            id: tier1Id,
+            eventId: event1Id,
+            name: 'Early Bird',
+            capacity: 100,
+            price: 25.0,
+            soldCount: 80,
+            reservedCount: 10,
+          },
+          {
+            id: tier2Id,
+            eventId: event1Id,
+            name: 'VIP',
+            capacity: 50,
+            price: 100.0,
+            soldCount: 20,
+            reservedCount: 5,
+          },
+        ],
+        bookings: [
+          {
+            id: 'b-1',
+            tierId: tier1Id,
+            status: 'PAID',
+            tickets: [
+              { id: 't-1', status: TicketStatus.CHECKED_IN },
+              { id: 't-2', status: TicketStatus.ACTIVE },
+            ],
+          },
+          {
+            id: 'b-2',
+            tierId: tier2Id,
+            status: 'PAID',
+            tickets: [
+              { id: 't-3', status: TicketStatus.CHECKED_IN },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const mockAllEvents = [
+      ...mockOrganizer1Events,
+      {
+        id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+        organizerId: organizer2Id,
+        title: 'Khmer Developers Meetup',
+        description: 'Developer community meetup',
+        venue: 'CADT Innovation Hub',
+        startsAt: new Date('2026-12-01T14:00:00Z'),
+        status: 'PUBLISHED',
+        createdAt: new Date('2026-10-05T00:00:00Z'),
+        updatedAt: new Date('2026-10-05T00:00:00Z'),
+        tiers: [
+          {
+            id: 'tier-meetup-1',
+            eventId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+            name: 'General',
+            capacity: 200,
+            price: 0.0,
+            soldCount: 50,
+            reservedCount: 0,
+          },
+        ],
+        bookings: [],
+      },
+    ];
+
+    it('returns 200 OK and only events owned by authenticated organizer', async () => {
+      const findManySpy = vi.spyOn(app.prisma.event, 'findMany').mockResolvedValueOnce(mockOrganizer1Events as any);
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/organizer/events',
+        headers: {
+          authorization: `Bearer ${organizer1Token}`,
+        },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const events = res.json();
+      expect(Array.isArray(events)).toBe(true);
+      expect(events).toHaveLength(1);
+      expect(events[0].id).toBe(event1Id);
+      expect(events[0].organizerId).toBe(organizer1Id);
+      expect(events[0].tiers).toHaveLength(2);
+
+      // Verify tier fields: capacity, price, currency, soldCount, checkedInCount
+      expect(events[0].tiers[0]).toMatchObject({
+        id: tier1Id,
+        name: 'Early Bird',
+        capacity: 100,
+        price: 25.0,
+        currency: 'USD',
+        soldCount: 80,
+        checkedInCount: 1,
+      });
+      expect(events[0].tiers[1]).toMatchObject({
+        id: tier2Id,
+        name: 'VIP',
+        capacity: 50,
+        price: 100.0,
+        currency: 'USD',
+        soldCount: 20,
+        checkedInCount: 1,
+      });
+
+      expect(findManySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { organizerId: organizer1Id },
+        })
+      );
+    });
+
+    it('returns 200 OK and all events when requested by ADMIN', async () => {
+      const findManySpy = vi.spyOn(app.prisma.event, 'findMany').mockResolvedValueOnce(mockAllEvents as any);
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/organizer/events',
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const events = res.json();
+      expect(Array.isArray(events)).toBe(true);
+      expect(events).toHaveLength(2);
+
+      expect(findManySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {},
+        })
+      );
+    });
+
+    it('supports /api/v1/organizer/events prefix identically', async () => {
+      vi.spyOn(app.prisma.event, 'findMany').mockResolvedValueOnce(mockOrganizer1Events as any);
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/organizer/events',
+        headers: {
+          authorization: `Bearer ${organizer1Token}`,
+        },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const events = res.json();
+      expect(Array.isArray(events)).toBe(true);
+      expect(events).toHaveLength(1);
     });
   });
 });

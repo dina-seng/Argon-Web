@@ -4,6 +4,7 @@
  * Organizer Event Sales, Tier Quota Management, and Attendee Rostering.
  */
 
+import type { FastifyInstance } from 'fastify';
 import { PrismaClient, Prisma } from '@prisma/client';
 
 export class HttpError extends Error {
@@ -324,4 +325,110 @@ export async function issueStaffCredential(
   _organizerId: string
 ): Promise<unknown> {
   throw new HttpError(501, 'Staff credential issuance not implemented yet', 'Not Implemented');
+}
+
+export interface OrganizerEventTierItem {
+  id: string;
+  eventId: string;
+  name: string;
+  capacity: number;
+  price: number;
+  currency: string;
+  soldCount: number;
+  reservedCount: number;
+  checkedInCount: number;
+}
+
+export interface OrganizerEventItem {
+  id: string;
+  organizerId: string;
+  title: string;
+  description: string;
+  venue: string;
+  startsAt: Date;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  tiers: OrganizerEventTierItem[];
+  totalCapacity: number;
+  totalSold: number;
+  totalCheckedIn: number;
+}
+
+/**
+ * Lists events for an organizer, or all events if platform admin.
+ * Includes tiers with capacity, price, currency, soldCount, and checkedInCount.
+ */
+export async function listOrganizerEvents(
+  app: FastifyInstance | { prisma: PrismaClient },
+  organizerId: string,
+  isAdmin = false
+): Promise<OrganizerEventItem[]> {
+  const prisma = 'prisma' in app ? app.prisma : getPrismaClient();
+
+  const where: Prisma.EventWhereInput = isAdmin ? {} : { organizerId };
+
+  const events = await prisma.event.findMany({
+    where,
+    include: {
+      tiers: true,
+      bookings: {
+        where: { status: 'PAID' },
+        include: {
+          tickets: true,
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return events.map((event) => {
+    let totalCheckedIn = 0;
+    let totalSold = 0;
+    let totalCapacity = 0;
+
+    const tiers: OrganizerEventTierItem[] = event.tiers.map((tier) => {
+      const tierBookings = (event.bookings || []).filter((b) => b.tierId === tier.id);
+      const checkedInCount = tierBookings.reduce(
+        (acc, b) =>
+          acc +
+          (b.tickets
+            ? b.tickets.filter((ticket) => ticket.status === 'CHECKED_IN').length
+            : 0),
+        0
+      );
+
+      totalCheckedIn += checkedInCount;
+      totalSold += tier.soldCount;
+      totalCapacity += tier.capacity;
+
+      return {
+        id: tier.id,
+        eventId: tier.eventId,
+        name: tier.name,
+        capacity: tier.capacity,
+        price: Number(tier.price),
+        currency: 'USD',
+        soldCount: tier.soldCount,
+        reservedCount: tier.reservedCount,
+        checkedInCount,
+      };
+    });
+
+    return {
+      id: event.id,
+      organizerId: event.organizerId,
+      title: event.title,
+      description: event.description,
+      venue: event.venue,
+      startsAt: event.startsAt,
+      status: event.status,
+      createdAt: event.createdAt,
+      updatedAt: event.updatedAt,
+      tiers,
+      totalCapacity,
+      totalSold,
+      totalCheckedIn,
+    };
+  });
 }

@@ -4,6 +4,7 @@ import {
   getEventMetrics,
   updateTierQuota,
   getAttendees,
+  listOrganizerEvents,
 } from './service';
 import type {
   GetEventMetricsParams,
@@ -78,4 +79,15 @@ export async function issueStaffController(
     error: 'Not Implemented',
     message: 'Staff credential issuance not implemented yet',
   });
+}
+
+export async function listOrganizerEventsController(
+  req: FastifyRequest,
+  reply: FastifyReply
+): Promise<void> {
+  const userId = req.user.sub;
+  const isAdmin = req.user.role === 'ADMIN';
+
+  const events = await listOrganizerEvents(req.server, userId, isAdmin);
+  reply.send(events);
 }
