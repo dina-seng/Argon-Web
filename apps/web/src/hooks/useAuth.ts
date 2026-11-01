@@ -1,87 +1,125 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { JwtPayload, Role } from '@argon/shared';
-import { getToken, setToken, clearToken, parseJwt, isTokenExpired, createDevToken } from '../lib/auth';
+import { api } from '../lib/api';
+import { clearToken, getRefreshToken, getToken, setSessionTokens, parseJwt } from '../lib/auth';
 
-export interface AuthContextType {
+export interface AuthContextValue {
   user: JwtPayload | null;
   token: string | null;
   role: Role | null;
+  isAdmin: boolean;
+  isOrganizer: boolean;
+  isCustomer: boolean;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (token: string) => void;
-  logout: () => void;
-  switchDevRole: (role: Role | 'ADMIN' | 'ORGANIZER' | 'CUSTOMER') => void;
+  login: (email: string, password: string) => Promise<JwtPayload>;
+  register: (input: { name: string; email: string; password: string; confirmPassword: string; role: 'CUSTOMER' | 'ORGANIZER' }) => Promise<JwtPayload>;
+  refreshSession: () => Promise<JwtPayload>;
+  logout: () => Promise<void>;
 }
 
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export type AuthContextType = AuthContextValue;
+
+interface TokenResponse {
+  token: string;
+  refreshToken: string;
+  expiresIn: string;
+}
+
+export const AuthContext = createContext<AuthContextValue | null>(null);
+
+function decodeToken(token: string | null): JwtPayload | null {
+  if (!token) return null;
+  return parseJwt(token);
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setTokenState] = useState<string | null>(null);
-  const [user, setUser] = useState<JwtPayload | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [tokenState, setTokenState] = useState<string | null>(() => getToken());
+  const [user, setUser] = useState<JwtPayload | null>(() => decodeToken(getToken()));
+  const [isLoading, setIsLoading] = useState(() => !getToken() && getRefreshToken() !== null);
 
-  // Initialize auth state from session storage
   useEffect(() => {
-    const storedToken = getToken();
-    if (storedToken) {
-      if (isTokenExpired(storedToken)) {
-        clearToken();
-        setTokenState(null);
-        setUser(null);
-      } else {
-        const decoded = parseJwt(storedToken);
-        if (decoded) {
-          setTokenState(storedToken);
-          setUser(decoded);
-        } else {
-          clearToken();
-          setTokenState(null);
-          setUser(null);
-        }
-      }
-    }
+    const syncSession = () => {
+      const currentToken = getToken();
+      setTokenState(currentToken);
+      setUser(decodeToken(currentToken));
+      if (!currentToken && !getRefreshToken()) setIsLoading(false);
+    };
+    window.addEventListener('argon:auth-change', syncSession);
+    return () => window.removeEventListener('argon:auth-change', syncSession);
+  }, []);
+
+  const login = useCallback(async (email: string, password: string) => {
+    const { token, refreshToken } = await api.post<TokenResponse>('/auth/login', { email, password });
+    const decoded = decodeToken(token);
+    if (!decoded) throw new Error('The server returned an invalid session token.');
+    setSessionTokens(token, refreshToken);
+    setTokenState(token);
+    setUser(decoded);
+    return decoded;
+  }, []);
+
+  const register = useCallback(async (input: { name: string; email: string; password: string; confirmPassword: string; role: 'CUSTOMER' | 'ORGANIZER' }) => {
+    const { token, refreshToken } = await api.post<TokenResponse>('/auth/register', input);
+    const decoded = decodeToken(token);
+    if (!decoded) throw new Error('The server returned an invalid session token.');
+    setSessionTokens(token, refreshToken);
+    setTokenState(token);
+    setUser(decoded);
+    return decoded;
+  }, []);
+
+  const refreshSession = useCallback(async () => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) throw new Error('No refresh session is available.');
+    const result = await api.post<TokenResponse>('/auth/refresh', { refreshToken });
+    const decoded = decodeToken(result.token);
+    if (!decoded) throw new Error('The server returned an invalid session token.');
+    setSessionTokens(result.token, result.refreshToken);
+    setTokenState(result.token);
+    setUser(decoded);
     setIsLoading(false);
+    return decoded;
   }, []);
 
-  const login = useCallback((newToken: string) => {
-    setToken(newToken);
-    const decoded = parseJwt(newToken);
-    setTokenState(newToken);
-    setUser(decoded);
+  const logout = useCallback(async () => {
+    const refreshToken = getRefreshToken();
+    try {
+      await api.post<void>('/auth/logout', refreshToken ? { refreshToken } : {});
+    } finally {
+      clearToken();
+      setTokenState(null);
+      setUser(null);
+      setIsLoading(false);
+    }
   }, []);
 
-  const logout = useCallback(() => {
-    clearToken();
-    setTokenState(null);
-    setUser(null);
-  }, []);
+  const role = user?.role ?? null;
+  const isAdmin = user?.role === 'ADMIN';
+  const isOrganizer = user?.role === 'ORGANIZER';
+  const isCustomer = user?.role === 'CUSTOMER';
+  const isAuthenticated = user !== null;
 
-  const switchDevRole = useCallback((role: Role | 'ADMIN' | 'ORGANIZER' | 'CUSTOMER') => {
-    const devToken = createDevToken(role);
-    setToken(devToken);
-    const decoded = parseJwt(devToken);
-    setTokenState(devToken);
-    setUser(decoded);
-  }, []);
-
-  const value: AuthContextType = {
+  const value: AuthContextValue = useMemo(() => ({
     user,
-    token,
-    role: user?.role ?? null,
-    isAuthenticated: !!user,
+    token: tokenState,
+    role,
+    isAdmin,
+    isOrganizer,
+    isCustomer,
+    isAuthenticated,
     isLoading,
     login,
+    register,
+    refreshSession,
     logout,
-    switchDevRole,
-  };
+  }), [user, tokenState, role, isAdmin, isOrganizer, isCustomer, isAuthenticated, isLoading, login, register, refreshSession, logout]);
 
-  return React.createElement(AuthContext.Provider, { value }, children);
+  return createElement(AuthContext.Provider, { value }, children);
 }
 
-export function useAuth(): AuthContextType {
+export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 }

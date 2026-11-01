@@ -1,105 +1,39 @@
 /**
- * lib/api.ts – typed API client for the Argon REST API.
- * Supports Bearer token injection, RFC 7807 error parsing, and full HTTP verbs.
+ * Axios client for the Argon REST API.
+ * Adds the current tab's Bearer token and clears expired sessions on 401.
  */
-import { getToken } from './auth';
-import type { ApiError } from '@argon/shared';
+import axios, { type AxiosError } from 'axios';
+import { clearAccessToken, clearToken, getToken } from './auth';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
+const client = axios.create({ baseURL: BASE_URL, headers: { Accept: 'application/json' } });
 
-export class ApiRequestError extends Error implements ApiError {
-  public statusCode: number;
-  public error: string;
-  public details?: unknown;
-
-  constructor(statusCode: number, error: string, message: string, details?: unknown) {
-    super(message);
-    this.name = 'ApiRequestError';
-    this.statusCode = statusCode;
-    this.error = error;
-    this.details = details;
-    Object.setPrototypeOf(this, ApiRequestError.prototype);
-  }
-}
-
-export interface RequestOptions extends Omit<RequestInit, 'body'> {
-  body?: unknown;
-}
-
-export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+client.interceptors.request.use((config) => {
   const token = getToken();
-  const headers = new Headers(options.headers);
+  if (token) config.headers.set('Authorization', `Bearer ${token}`);
+  return config;
+});
 
-  if (token && !headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-
-  let body: BodyInit | undefined;
-  if (options.body !== undefined) {
-    if (typeof options.body === 'string' || options.body instanceof FormData || options.body instanceof Blob) {
-      body = options.body as BodyInit;
-    } else {
-      if (!headers.has('Content-Type')) {
-        headers.set('Content-Type', 'application/json');
-      }
-      body = JSON.stringify(options.body);
+client.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError<{ message?: string }>) => {
+    if (error.response?.status === 401) {
+      if (error.config?.url === '/auth/refresh') clearToken();
+      else clearAccessToken();
     }
-  }
-
-  const url = path.startsWith('http://') || path.startsWith('https://') ? path : `${BASE_URL}${path}`;
-
-  const res = await fetch(url, {
-    ...options,
-    headers,
-    body,
-  });
-
-  if (!res.ok) {
-    let parsed: Record<string, unknown> = {};
-    try {
-      parsed = (await res.json()) as Record<string, unknown>;
-    } catch {
-      // not JSON
+    if (error.response) {
+      const status = error.response.status;
+      const message = error.response.data?.message;
+      return Promise.reject(new Error(`API error ${status}${message ? `: ${message}` : ''}`));
     }
-
-    const statusCode =
-      (typeof parsed.statusCode === 'number' ? parsed.statusCode : undefined) ??
-      (typeof parsed.status === 'number' ? parsed.status : undefined) ??
-      res.status;
-    const error =
-      (typeof parsed.error === 'string' ? parsed.error : undefined) ??
-      (typeof parsed.title === 'string' ? parsed.title : undefined) ??
-      res.statusText ??
-      'API Error';
-    const message =
-      (typeof parsed.message === 'string' ? parsed.message : undefined) ??
-      (typeof parsed.detail === 'string' ? parsed.detail : undefined) ??
-      `HTTP ${res.status}: ${res.statusText || 'Request failed'}`;
-
-    throw new ApiRequestError(statusCode, error, message, parsed.details);
-  }
-
-  if (res.status === 204) {
-    return undefined as unknown as T;
-  }
-
-  const contentType = res.headers.get('content-type');
-  if (contentType && contentType.includes('application/json')) {
-    return res.json() as Promise<T>;
-  }
-
-  return res.text() as unknown as Promise<T>;
-}
+    return Promise.reject(new TypeError("Can't reach the server. Check your connection and try again."));
+  },
+);
 
 export const api = {
-  get: <T>(path: string, options?: RequestOptions) => request<T>(path, { ...options, method: 'GET' }),
-  post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    request<T>(path, { ...options, method: 'POST', body }),
-  put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    request<T>(path, { ...options, method: 'PUT', body }),
-  patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    request<T>(path, { ...options, method: 'PATCH', body }),
-  delete: <T>(path: string, options?: RequestOptions) =>
-    request<T>(path, { ...options, method: 'DELETE' }),
-  request,
+  get: async <T>(path: string): Promise<T> => (await client.get<T>(path)).data,
+  post: async <T>(path: string, body?: unknown): Promise<T> => (await client.post<T>(path, body)).data,
+  put: async <T>(path: string, body?: unknown): Promise<T> => (await client.put<T>(path, body)).data,
+  patch: async <T>(path: string, body?: unknown): Promise<T> => (await client.patch<T>(path, body)).data,
+  delete: async <T>(path: string): Promise<T> => (await client.delete<T>(path)).data,
 };

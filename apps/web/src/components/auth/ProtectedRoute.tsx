@@ -14,7 +14,7 @@ export interface ProtectedRouteProps {
  * Enforces authentication and role-based access control (RBAC).
  */
 export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) {
-  const { user, role, isLoading, switchDevRole } = useAuth();
+  const { user, role, isLoading } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -35,8 +35,6 @@ export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) 
 
   // Role check: If allowedRoles is defined, user role must match
   if (allowedRoles && allowedRoles.length > 0 && (!role || !allowedRoles.includes(role))) {
-    const recommendedRole = allowedRoles[0];
-
     return (
       <div className="flex min-h-[70vh] items-center justify-center p-4">
         <div className="w-full max-w-md rounded-2xl border border-rose-500/20 bg-surface-card p-6 md:p-8 text-center shadow-xl">
@@ -69,15 +67,11 @@ export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) 
           </p>
 
           <div className="mt-6 flex flex-col gap-2.5">
-            {recommendedRole && (
-              <Button
-                variant="primary"
-                onClick={() => switchDevRole(recommendedRole)}
-                className="w-full justify-center"
-              >
-                Switch Dev Role to {recommendedRole}
+            <Link to="/login" className="w-full">
+              <Button variant="primary" className="w-full justify-center">
+                Sign In with Authorized Account
               </Button>
-            )}
+            </Link>
 
             <Link to="/" className="w-full">
               <Button variant="secondary" className="w-full justify-center">

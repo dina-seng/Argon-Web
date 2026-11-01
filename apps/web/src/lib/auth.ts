@@ -1,65 +1,44 @@
 /**
- * lib/auth.ts – token storage & JWT decoding utilities.
+ * lib/auth.ts – token storage helpers.
+ * MVP session storage: the JWT survives reloads in this tab and is cleared when the tab closes.
+ * Never persist the JWT in localStorage.
  */
-import type { JwtPayload } from '@argon/shared';
-import { Role } from '@argon/shared';
+import type { JwtPayload, Role } from '@argon/shared';
 
 const TOKEN_KEY = 'argon_token';
+const REFRESH_TOKEN_KEY = 'argon_refresh_token';
 
 export function getToken(): string | null {
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  if (!token) return null;
+  const expiresAt = getTokenExpiry(token);
+  if (expiresAt === null || expiresAt <= Date.now()) {
+    clearAccessToken();
+    return null;
+  }
+  return token;
+}
+
+export function hasStoredToken(): boolean {
+  return sessionStorage.getItem(TOKEN_KEY) !== null;
+}
+
+/** Read the JWT expiry for client-side session handling only; the API verifies the JWT. */
+export function getTokenExpiry(token: string): number | null {
   try {
-    return sessionStorage.getItem(TOKEN_KEY);
+    const payloadPart = token.split('.')[1];
+    if (!payloadPart) return null;
+    const base64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+    const payload: unknown = JSON.parse(atob(padded));
+    if (typeof payload !== 'object' || payload === null || !('exp' in payload)) return null;
+    const exp = (payload as { exp?: unknown }).exp;
+    return typeof exp === 'number' && Number.isFinite(exp) ? exp * 1000 : null;
   } catch {
     return null;
   }
 }
 
-export function setToken(token: string): void {
-  try {
-    sessionStorage.setItem(TOKEN_KEY, token);
-  } catch {
-    // ignore sessionStorage errors in restricted environments
-  }
-}
-
-export function clearToken(): void {
-  try {
-    sessionStorage.removeItem(TOKEN_KEY);
-  } catch {
-    // ignore
-  }
-}
-
-function base64UrlDecode(str: string): string {
-  let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
-  while (base64.length % 4) {
-    base64 += '=';
-  }
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    const code = binaryString.charCodeAt(i);
-    bytes[i] = code;
-  }
-  return new TextDecoder().decode(bytes);
-}
-
-function base64UrlEncode(str: string): string {
-  const bytes = new TextEncoder().encode(str);
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    const byte = bytes[i];
-    if (byte !== undefined) {
-      binary += String.fromCharCode(byte);
-    }
-  }
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-/**
- * Decodes and validates a standard JWT payload.
- * Returns null if token is malformed.
- */
 export function parseJwt(token: string): JwtPayload | null {
   if (!token || typeof token !== 'string') return null;
   const parts = token.split('.');
@@ -69,8 +48,9 @@ export function parseJwt(token: string): JwtPayload | null {
   if (!payloadPart) return null;
 
   try {
-    const jsonStr = base64UrlDecode(payloadPart);
-    const payload = JSON.parse(jsonStr) as Record<string, unknown>;
+    const base64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+    const payload = JSON.parse(atob(padded)) as Record<string, unknown>;
     if (!payload || typeof payload !== 'object') return null;
     if (typeof payload.sub !== 'string' || typeof payload.email !== 'string' || !payload.role) {
       return null;
@@ -88,47 +68,38 @@ export function parseJwt(token: string): JwtPayload | null {
   }
 }
 
-/**
- * Checks whether a token has expired based on its `exp` claim.
- */
 export function isTokenExpired(token: string): boolean {
-  const payload = parseJwt(token);
-  if (!payload || !payload.exp) return false;
-  return payload.exp * 1000 < Date.now();
+  const expiresAt = getTokenExpiry(token);
+  if (expiresAt === null) return true;
+  return expiresAt <= Date.now();
 }
 
-/**
- * Helper to generate a demo/dev session token for fast local UI testing
- * without needing an active backend login flow.
- */
-export function createDevToken(role: Role | 'ADMIN' | 'ORGANIZER' | 'CUSTOMER'): string {
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const now = Math.floor(Date.now() / 1000);
-  const exp = now + 60 * 60 * 24; // 24 hours
+export function setToken(token: string): void {
+  sessionStorage.setItem(TOKEN_KEY, token);
+  notifyAuthChange();
+}
 
-  const roleConfigs: Record<string, { sub: string; email: string }> = {
-    ADMIN: { sub: 'usr_admin_001', email: 'admin@argon.kh' },
-    ORGANIZER: { sub: 'usr_barcamp_001', email: 'barcamp@argon.kh' },
-    CUSTOMER: { sub: 'usr_cust_001', email: 'customer@argon.kh' },
-  };
+export function setSessionTokens(token: string, refreshToken: string): void {
+  sessionStorage.setItem(TOKEN_KEY, token);
+  sessionStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  notifyAuthChange();
+}
 
-  const config: { sub: string; email: string } =
-    (typeof role === 'string' && role in roleConfigs ? roleConfigs[role] : undefined) ?? {
-      sub: 'usr_admin_001',
-      email: 'admin@argon.kh',
-    };
+export function getRefreshToken(): string | null {
+  return sessionStorage.getItem(REFRESH_TOKEN_KEY);
+}
 
-  const payload: JwtPayload = {
-    sub: config.sub,
-    role: role as Role,
-    email: config.email,
-    iat: now,
-    exp,
-  };
+export function clearAccessToken(): void {
+  sessionStorage.removeItem(TOKEN_KEY);
+  notifyAuthChange();
+}
 
-  const headerB64 = base64UrlEncode(JSON.stringify(header));
-  const payloadB64 = base64UrlEncode(JSON.stringify(payload));
-  const sigB64 = base64UrlEncode('dev_mock_signature');
+export function clearToken(): void {
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+  notifyAuthChange();
+}
 
-  return `${headerB64}.${payloadB64}.${sigB64}`;
+function notifyAuthChange(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('argon:auth-change'));
 }

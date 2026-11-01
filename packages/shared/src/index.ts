@@ -8,3 +8,10 @@ export * from './enums.js';
 export * from './constants.js';
 export * from './types.js';
 export * from './schemas/index.js';
+
+export {
+    Role,
+    BookingStatus,
+    TicketStatus,
+    EventStatus,
+} from './enums.js';
