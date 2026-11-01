@@ -5,24 +5,27 @@ import { Role } from '@argon/shared';
 import { AdminLayout } from './components/layout/AdminLayout';
 import { ProtectedRoute } from './features/auth/ProtectedRoute';
 
-// Public & Customer Feature Views (from main)
+// Public & Customer Feature Views
 import EventCatalogPage from './features/discovery/EventCatalogPage';
+import EventDetailPage from './features/discovery/EventDetailPage';
 import CheckoutPage from './features/booking/CheckoutPage';
 import PaymentPage from './features/booking/PaymentPage';
 import MyTicketsPage from './features/tickets/MyTicketsPage';
 import QrPassPage from './features/tickets/QrPassPage';
-import ScannerPage from './features/organizer/ScannerPage';
 import LoginPage from './features/auth/LoginPage';
 import RegisterPage from './features/auth/RegisterPage';
 
-// Organizer Feature Views (from monirath/development)
+// Organizer Feature Views
+import DashboardPage from './features/organizer/DashboardPage';
+import EventFormPage from './features/organizer/EventFormPage';
+import ScannerPage from './features/organizer/ScannerPage';
 import {
   OrganizerDashboardView,
   TierQuotaView,
   AttendeeRosterView,
 } from './features/organizer';
 
-// Admin Feature Views (from monirath/development)
+// Admin Feature Views
 import {
   AdminDashboardView,
   UserManagementView,
@@ -31,7 +34,7 @@ import {
 } from './features/admin';
 
 /**
- * PlaceholderPage – Standalone placeholder for pending public and customer routes.
+ * PlaceholderPage – Standalone placeholder for pending views.
  */
 const PlaceholderPage = ({ name }: { name: string }) => (
   <div className="flex min-h-screen items-center justify-center bg-surface p-4">
@@ -59,7 +62,7 @@ export default function AppRoutes() {
       {/* ==================================================================== */}
       <Route path="/" element={<EventCatalogPage />} />
       <Route path="/events" element={<EventCatalogPage />} />
-      <Route path="/events/:id" element={<PlaceholderPage name="Event Detail" />} />
+      <Route path="/events/:id" element={<EventDetailPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
@@ -93,7 +96,9 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route path="/organizer" element={<OrganizerDashboardView />} />
+        <Route path="/organizer" element={<DashboardPage />} />
+        <Route path="/organizer/events/new" element={<EventFormPage />} />
+        <Route path="/organizer/events/:id" element={<EventFormPage />} />
         <Route path="/organizer/metrics" element={<OrganizerDashboardView />} />
         <Route path="/organizer/events/:id/metrics" element={<OrganizerDashboardView />} />
         <Route path="/organizer/tiers" element={<TierQuotaView />} />
@@ -101,8 +106,6 @@ export default function AppRoutes() {
         <Route path="/organizer/attendees" element={<AttendeeRosterView />} />
         <Route path="/organizer/events/:id/attendees" element={<AttendeeRosterView />} />
         <Route path="/organizer/scanner" element={<ScannerPage />} />
-        <Route path="/organizer/events/new" element={<PlaceholderPage name="Create Event" />} />
-        <Route path="/organizer/events/:id" element={<PlaceholderPage name="Edit Event" />} />
         <Route path="/organizer/events/:id/bookings" element={<PlaceholderPage name="Bookings Table" />} />
         <Route path="/organizer/staff" element={<PlaceholderPage name="Staff Credentials" />} />
       </Route>

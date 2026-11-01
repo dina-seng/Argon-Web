@@ -18,6 +18,7 @@ import {
   PrismaClient,
   Role,
   EventStatus,
+  EventCategory,
   BookingStatus,
   TicketStatus,
 } from '@prisma/client';
@@ -168,6 +169,7 @@ async function main() {
         "Cambodia's premier open tech conference and community gathering connecting developers, designers, students, and technologists.",
       venue: 'CADT Innovation Center',
       startsAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+      category: EventCategory.TECH,
       status: EventStatus.PUBLISHED,
       tiers: {
         create: [
@@ -207,6 +209,7 @@ async function main() {
         'Annual student innovation showcase, robotics demonstration, and tech industry fair hosted across CADT Innovation Center.',
       venue: 'Building F Main Hall',
       startsAt: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000),
+      category: EventCategory.TECH,
       status: EventStatus.PUBLISHED,
       tiers: {
         create: [
@@ -239,6 +242,7 @@ async function main() {
         'Executive summit exploring national AI policy, sovereign compute infrastructure, and enterprise machine learning adoption.',
       venue: 'Diamond Island Convention Hall',
       startsAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+      category: EventCategory.TECH,
       status: EventStatus.DRAFT,
       tiers: {
         create: [

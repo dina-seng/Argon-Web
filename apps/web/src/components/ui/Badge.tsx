@@ -1,4 +1,12 @@
-export type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'default' | 'green' | 'blue';
+export type BadgeVariant =
+  | 'success'
+  | 'warning'
+  | 'error'
+  | 'info'
+  | 'default'
+  | 'green'
+  | 'blue'
+  | 'price';
 
 export interface BadgeProps {
   label: string;
@@ -13,6 +21,7 @@ const variantStyles: Record<BadgeVariant, string> = {
   error: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
   info: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
   blue: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
+  price: 'bg-price text-surface border-transparent font-bold',
   default: 'bg-slate-700/40 text-slate-300 border-slate-600/30',
 };
 

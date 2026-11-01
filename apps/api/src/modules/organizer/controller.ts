@@ -6,6 +6,7 @@ import {
   getAttendees,
   listOrganizerEvents,
 } from './service';
+import { getOrganizerEvent } from '../events/service';
 import type {
   GetEventMetricsParams,
   UpdateTierQuotaParams,
@@ -90,4 +91,15 @@ export async function listOrganizerEventsController(
 
   const events = await listOrganizerEvents(req.server, userId, isAdmin);
   reply.send(events);
+}
+
+export async function listMyEventsController(req: FastifyRequest) {
+  const userId = req.user.sub;
+  const isAdmin = req.user.role === 'ADMIN';
+  return listOrganizerEvents(req.server, userId, isAdmin);
+}
+
+export async function getMyEventController(req: FastifyRequest) {
+  const { eventId } = req.params as { eventId: string };
+  return getOrganizerEvent(req.server, req.user.sub, eventId);
 }
