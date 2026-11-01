@@ -9,7 +9,6 @@ import axios, { type AxiosError } from 'axios';
 import { clearAccessToken, clearToken, getToken } from './auth';
 
 import type { ApiError } from '@argon/shared';
-import { getToken } from './auth';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
 const client = axios.create({ baseURL: BASE_URL, headers: { Accept: 'application/json' } });
@@ -40,10 +39,6 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export const api = {
-  get: <T>(path: string) => request<T>(path),
-  post: <T>(path: string, body: unknown) => request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
-  patch: <T>(path: string, body: unknown) => request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
 client.interceptors.request.use((config) => {
   const token = getToken();
   if (token) config.headers.set('Authorization', `Bearer ${token}`);
@@ -69,4 +64,5 @@ client.interceptors.response.use(
 export const api = {
   get: async <T>(path: string): Promise<T> => (await client.get<T>(path)).data,
   post: async <T>(path: string, body: unknown): Promise<T> => (await client.post<T>(path, body)).data,
+  patch: async <T>(path: string, body: unknown): Promise<T> => (await client.patch<T>(path, body)).data,
 };
