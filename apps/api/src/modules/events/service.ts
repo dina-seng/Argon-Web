@@ -37,8 +37,8 @@ function toOrganizerEvent({ tiers, ...event }: EventWithTiers): OrganizerEvent {
     startsAt: event.startsAt.toISOString(),
     createdAt: event.createdAt.toISOString(),
     updatedAt: event.updatedAt.toISOString(),
-    capacity: tiers.reduce((sum, t) => sum + t.capacity, 0),
-    soldCount: tiers.reduce((sum, t) => sum + t.soldCount, 0),
+    capacity: tiers.reduce((sum: number, t: EventWithTiers['tiers'][number]) => sum + t.capacity, 0),
+    soldCount: tiers.reduce((sum: number, t: EventWithTiers['tiers'][number]) => sum + t.soldCount, 0),
   };
 }
 
@@ -67,8 +67,8 @@ function toPublicEvent({ tiers, organizer, ...event }: PublicEventRow): PublicEv
     category: event.category as EventCategory,
     coverImageUrl: event.coverImageUrl,
     organizerName: organizer.name,
-    capacity: tiers.reduce((sum, t) => sum + t.capacity, 0),
-    ticketsRemaining: tiers.reduce((sum, t) => sum + tierRemaining(t), 0),
+    capacity: tiers.reduce((sum: number, t: TierRow) => sum + t.capacity, 0),
+    ticketsRemaining: tiers.reduce((sum: number, t: TierRow) => sum + tierRemaining(t), 0),
     minPrice: tiers.length ? Math.min(...tiers.map((t) => Number(t.price))) : 0,
   };
 }
@@ -176,7 +176,7 @@ export async function updateEvent(
     throw conflict('Capacity can only be edited on events with a single ticket tier');
   }
 
-  await app.prisma.$transaction(async (tx) => {
+  await app.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     if (capacity !== undefined && tier && capacity !== tier.capacity) {
       // Conditional update so a booking made after we read the tier can't push it over capacity.
       const updated = await tx.$executeRaw`
@@ -202,7 +202,7 @@ export async function updateEventStatus(
   const event = await findOwnedEvent(app, organizerId, eventId);
   const allowedFrom = STATUS_TRANSITIONS[status];
 
-  if (!allowedFrom.includes(event.status as EventStatus)) {
+  if (!allowedFrom || !allowedFrom.includes(event.status as EventStatus)) {
     throw conflict(`Can't change a ${event.status.toLowerCase()} event to ${status.toLowerCase()}`);
   }
   if (status === EventStatus.PUBLISHED && event.startsAt.getTime() <= Date.now()) {
