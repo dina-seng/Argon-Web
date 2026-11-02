@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod';
-import { BookingStatus } from '@prisma/client';
+import { BookingStatus, EventStatus } from '@prisma/client';
 
 export const updateUserRoleParamsSchema = z.object({
   userId: z.string().uuid(),
@@ -38,15 +38,56 @@ export const getAuditLogsQuerySchema = z.object({
 export const adminBookingsQuerySchema = z.object({
   status: z.nativeEnum(BookingStatus).optional(),
   search: z.string().optional(),
+  qrToken: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
   page: z.coerce.number().int().min(1).optional(),
 });
 
+export const getAdminEventsQuerySchema = z.object({
+  status: z.nativeEnum(EventStatus).optional(),
+  search: z.string().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export const updateAdminEventStatusParamsSchema = z.object({
+  eventId: z.string().uuid(),
+});
+
+export const updateAdminEventStatusBodySchema = z.object({
+  status: z.nativeEnum(EventStatus),
+  reason: z.string().optional(),
+});
+
+export const manualCheckInOverrideParamsSchema = z.object({
+  ticketId: z.string().uuid(),
+});
+
+export const userDetailsParamsSchema = z.object({
+  userId: z.string().uuid(),
+});
+
+export const toggleUserSuspensionParamsSchema = z.object({
+  userId: z.string().uuid(),
+});
+
+export const toggleUserSuspensionBodySchema = z.object({
+  suspend: z.boolean(),
+  reason: z.string().optional(),
+});
+
 export type UpdateUserRoleParams = z.infer<typeof updateUserRoleParamsSchema>;
 export type UpdateUserRoleBody = z.infer<typeof updateUserRoleBodySchema>;
+export type UserDetailsParams = z.infer<typeof userDetailsParamsSchema>;
+export type ToggleUserSuspensionParams = z.infer<typeof toggleUserSuspensionParamsSchema>;
+export type ToggleUserSuspensionBody = z.infer<typeof toggleUserSuspensionBodySchema>;
 export type GetUsersQuery = z.infer<typeof getUsersQuerySchema>;
 export type ForceConfirmParams = z.infer<typeof forceConfirmParamsSchema>;
 export type RefundBookingParams = z.infer<typeof refundBookingParamsSchema>;
 export type GetAuditLogsQuery = z.infer<typeof getAuditLogsQuerySchema>;
 export type AdminBookingsQuery = z.infer<typeof adminBookingsQuerySchema>;
+export type GetAdminEventsQuery = z.infer<typeof getAdminEventsQuerySchema>;
+export type UpdateAdminEventStatusParams = z.infer<typeof updateAdminEventStatusParamsSchema>;
+export type UpdateAdminEventStatusBody = z.infer<typeof updateAdminEventStatusBodySchema>;
+export type ManualCheckInOverrideParams = z.infer<typeof manualCheckInOverrideParamsSchema>;

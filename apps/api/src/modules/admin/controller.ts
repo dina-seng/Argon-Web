@@ -11,6 +11,13 @@ import type {
   RefundBookingParams,
   GetAuditLogsQuery,
   AdminBookingsQuery,
+  GetAdminEventsQuery,
+  UpdateAdminEventStatusParams,
+  UpdateAdminEventStatusBody,
+  ManualCheckInOverrideParams,
+  UserDetailsParams,
+  ToggleUserSuspensionParams,
+  ToggleUserSuspensionBody,
 } from './schema';
 import * as adminService from './service';
 
@@ -18,7 +25,10 @@ export async function getPlatformOverviewController(
   req: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
-  const overview = await adminService.getPlatformOverview(req.server.prisma);
+  const overview = await adminService.getPlatformOverview(
+    req.server.prisma,
+    req.server
+  );
   reply.status(200).send(overview);
 }
 
@@ -45,6 +55,35 @@ export async function updateUserRoleController(
     newRole
   );
   reply.status(200).send(updatedUser);
+}
+
+export async function listAdminEventsController(
+  req: FastifyRequest<{ Querystring: GetAdminEventsQuery }>,
+  reply: FastifyReply
+): Promise<void> {
+  const result = await adminService.listAdminEvents(req.server.prisma, req.query);
+  reply.status(200).send(result);
+}
+
+export async function updateAdminEventStatusController(
+  req: FastifyRequest<{
+    Params: UpdateAdminEventStatusParams;
+    Body: UpdateAdminEventStatusBody;
+  }>,
+  reply: FastifyReply
+): Promise<void> {
+  const adminId = req.user.sub;
+  const eventId = req.params.eventId;
+  const { status, reason } = req.body;
+
+  const updatedEvent = await adminService.updateAdminEventStatus(
+    req.server.prisma,
+    adminId,
+    eventId,
+    status,
+    reason
+  );
+  reply.status(200).send(updatedEvent);
 }
 
 export async function forceConfirmBookingController(
@@ -77,6 +116,21 @@ export async function refundBookingController(
   reply.status(200).send(booking);
 }
 
+export async function manualCheckInOverrideController(
+  req: FastifyRequest<{ Params: ManualCheckInOverrideParams }>,
+  reply: FastifyReply
+): Promise<void> {
+  const adminId = req.user.sub;
+  const ticketId = req.params.ticketId;
+
+  const ticket = await adminService.manualCheckInOverride(
+    req.server.prisma,
+    adminId,
+    ticketId
+  );
+  reply.status(200).send(ticket);
+}
+
 export async function listAuditLogsController(
   req: FastifyRequest<{ Querystring: GetAuditLogsQuery }>,
   reply: FastifyReply
@@ -91,4 +145,47 @@ export async function listAdminBookingsController(
 ): Promise<void> {
   const result = await adminService.listAdminBookings(req.server.prisma, req.query);
   reply.status(200).send({ statusCode: 200, ...result });
+}
+
+export async function getSystemHealthController(
+  req: FastifyRequest,
+  reply: FastifyReply
+): Promise<void> {
+  const health = await adminService.getSystemHealthDetails(
+    req.server.prisma,
+    req.server
+  );
+  reply.status(200).send(health);
+}
+
+export async function getUserDetailsController(
+  req: FastifyRequest<{ Params: UserDetailsParams }>,
+  reply: FastifyReply
+): Promise<void> {
+  const details = await adminService.getUserDetails(
+    req.server.prisma,
+    req.params.userId
+  );
+  reply.status(200).send(details);
+}
+
+export async function toggleUserSuspensionController(
+  req: FastifyRequest<{
+    Params: ToggleUserSuspensionParams;
+    Body: ToggleUserSuspensionBody;
+  }>,
+  reply: FastifyReply
+): Promise<void> {
+  const adminUser = {
+    id: req.user.sub,
+    email: req.user.email ?? 'admin@argon.app',
+  };
+  const result = await adminService.toggleUserSuspension(
+    req.server.prisma,
+    adminUser,
+    req.params.userId,
+    req.body.suspend,
+    req.body.reason
+  );
+  reply.status(200).send(result);
 }
