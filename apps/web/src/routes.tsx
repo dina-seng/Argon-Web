@@ -3,6 +3,7 @@ import { Role } from '@argon/shared';
 
 // Layout & Guards
 import { AdminLayout } from './components/layout/AdminLayout';
+import { AdminNeoLayout } from './components/layout/AdminNeoLayout';
 import { ProtectedRoute } from './features/auth/ProtectedRoute';
 
 // Public & Customer Feature Views
@@ -28,9 +29,11 @@ import {
 // Admin Feature Views
 import {
   AdminDashboardView,
+  AdminEventsView,
   UserManagementView,
   TransactionOverridesView,
   AuditLogsView,
+  SystemHealthView,
 } from './features/admin';
 
 /**
@@ -111,19 +114,22 @@ export default function AppRoutes() {
       </Route>
 
       {/* ==================================================================== */}
-      {/* SUPER-ADMIN GOVERNANCE (ADMIN ROLE ONLY UNDER ADMINLAYOUT)           */}
+      {/* SUPER-ADMIN GOVERNANCE (ADMIN ROLE ONLY UNDER ADMINNEOLAYOUT)        */}
       {/* ==================================================================== */}
       <Route
         element={
           <ProtectedRoute allowedRoles={[Role.ADMIN]}>
-            <AdminLayout />
+            <AdminNeoLayout />
           </ProtectedRoute>
         }
       >
         <Route path="/admin" element={<AdminDashboardView />} />
+        <Route path="/admin/events" element={<AdminEventsView />} />
+        <Route path="/admin/bookings" element={<TransactionOverridesView />} />
+        <Route path="/admin/transactions" element={<Navigate to="/admin/bookings" replace />} />
         <Route path="/admin/users" element={<UserManagementView />} />
-        <Route path="/admin/transactions" element={<TransactionOverridesView />} />
         <Route path="/admin/audit" element={<AuditLogsView />} />
+        <Route path="/admin/system" element={<SystemHealthView />} />
       </Route>
 
       {/* ==================================================================== */}

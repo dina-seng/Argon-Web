@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>Argon — The Fluid Apex</title>
+  <defs>
+    <linearGradient id="apexGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4F46E5" />
+      <stop offset="45%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#06B6D4" />
+    </linearGradient>
+    <linearGradient id="crossbeamGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22D3EE" />
+      <stop offset="100%" stop-color="#818CF8" />
+    </linearGradient>
+  </defs>
+  <!-- Fluid Outer Ribbon A -->
+  <path fill="url(#apexGradient)" d="
+    M 128 32
+    C 140 32 150 42 156 56
+    L 218 196
+    C 224 210 216 224 202 224
+    C 192 224 182 216 178 206
+    L 164 172
+    C 146 172 110 172 92 172
+    L 78 206
+    C 74 216 64 224 54 224
+    C 40 224 32 210 38 196
+    L 100 56
+    C 106 42 116 32 128 32
+    Z
+    M 128 84
+    L 106 142
+    L 150 142
+    Z
+  "/>
+  <!-- Floating Fluid Cross-Portal Glow -->
+  <path fill="url(#crossbeamGradient)" d="
+    M 88 152
+    C 88 146 94 140 102 140
+    L 154 140
+    C 162 140 168 146 168 152
+    C 168 158 162 164 154 164
+    L 102 164
+    C 94 164 88 158 88 152
+    Z
+  "/>
+</svg>

@@ -280,7 +280,7 @@ export default function ScannerPage() {
         setCameraError(null);
       } catch (err) {
         console.warn('Camera access unavailable:', err);
-        setCameraError('Camera not available or permission denied. Use one-click simulation below.');
+        setCameraError('Camera not available or permission denied. Please enter the QR token manually below.');
         setCameraActive(false);
       }
     }
@@ -456,90 +456,6 @@ export default function ScannerPage() {
                     <span>{isScanning ? 'Verifying…' : 'Verify'}</span>
                   </button>
                 </form>
-              </div>
-
-              {/* Instant One-Click Test Simulation Scenarios */}
-              <div className="mt-6 pt-5 border-t border-zinc-800/80">
-                <span className="text-xs font-semibold text-zinc-300 block mb-2.5">
-                  One-Click Gate Test Scenarios:
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button
-                    onClick={() => {
-                      setInputToken('argon_tkt_0009_active');
-                      handlePerformScan('argon_tkt_0009_active');
-                    }}
-                    disabled={isScanning}
-                    className="p-2.5 text-left rounded-xl bg-purple-950/30 hover:bg-purple-900/40 border border-purple-800/40 transition group disabled:opacity-50"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-purple-300 font-mono">Scan Active QR</span>
-                      <span className="text-[10px] text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/60">
-                        Valid Token
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-zinc-400 mt-0.5">
-                      Tests valid check-in &amp; status transition
-                    </p>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setInputToken('argon_tkt_0001_duplicate');
-                      handlePerformScan('argon_tkt_0001_duplicate');
-                    }}
-                    disabled={isScanning}
-                    className="p-2.5 text-left rounded-xl bg-amber-950/20 hover:bg-amber-900/30 border border-amber-800/40 transition group disabled:opacity-50"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-amber-300 font-mono">Scan Used QR</span>
-                      <span className="text-[10px] text-amber-400 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-800/60">
-                        Duplicate 409
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-zinc-400 mt-0.5">
-                      Tests 409 duplicate check-in rejection
-                    </p>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setInputToken('argon_tkt_revoked_token');
-                      handlePerformScan('argon_tkt_revoked_token');
-                    }}
-                    disabled={isScanning}
-                    className="p-2.5 text-left rounded-xl bg-zinc-900 hover:bg-zinc-800/60 border border-zinc-700/60 transition group disabled:opacity-50"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-zinc-300 font-mono">Scan Revoked QR</span>
-                      <span className="text-[10px] text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">
-                        Revoked 400
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-zinc-400 mt-0.5">
-                      Tests expired or revoked rejection
-                    </p>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setInputToken('FAKE-UNKNOWN-TOKEN');
-                      handlePerformScan('FAKE-UNKNOWN-TOKEN');
-                    }}
-                    disabled={isScanning}
-                    className="p-2.5 text-left rounded-xl bg-red-950/20 hover:bg-red-900/30 border border-red-800/40 transition group disabled:opacity-50"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-red-300 font-mono">Scan Forged QR</span>
-                      <span className="text-[10px] text-red-400 bg-red-950/60 px-1.5 py-0.5 rounded border border-red-800/60">
-                        Invalid 400/404
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-zinc-400 mt-0.5">
-                      Tests security rejection for unknown QR
-                    </p>
-                  </button>
-                </div>
               </div>
             </div>
           </div>

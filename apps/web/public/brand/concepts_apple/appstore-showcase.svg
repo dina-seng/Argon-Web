@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900" style="background:#0B0F17;">
+  <defs>
+    <!-- Background Vignette -->
+    <radialGradient id="showcaseBg" cx="50%" cy="10%" r="90%">
+      <stop offset="0%" stop-color="#141B2D" />
+      <stop offset="50%" stop-color="#0B0F17" />
+      <stop offset="100%" stop-color="#05070B" />
+    </radialGradient>
+    <!-- Soft App Icon Drop Shadow -->
+    <filter id="appIconShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="24" stdDeviation="30" flood-color="#000000" flood-opacity="0.55" />
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000000" flood-opacity="0.35" />
+    </filter>
+    <!-- Glass Panel Surface -->
+    <linearGradient id="glassPanel" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.02" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="900" fill="url(#showcaseBg)" />
+
+  <!-- Top Apple Navigation Bar -->
+  <g transform="translate(60, 40)">
+    <!-- App Store Wordmark / Eyebrow -->
+    <text x="0" y="24" fill="#94A3B8" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif" font-size="12" font-weight="700" letter-spacing="2">APPLE APP STORE SPOTLIGHT</text>
+    <text x="0" y="52" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif" font-size="28" font-weight="800" letter-spacing="-0.5">Argon Identity & App Icon System</text>
+    <text x="0" y="78" fill="#64748B" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="14">Curated for iOS 18, macOS Sonoma, and modern high-end ticketing platforms.</text>
+  </g>
+
+  <!-- Section 1: The App Store Product Card (Hero) -->
+  <g transform="translate(60, 160)">
+    <!-- Frosted Glass Card Container -->
+    <rect width="1080" height="240" rx="28" fill="url(#glassPanel)" stroke="#FFFFFF" stroke-opacity="0.1" />
+
+    <!-- Concept 1 Hero Icon (The Cupertino Prism) -->
+    <g transform="translate(40, 36)" filter="url(#appIconShadow)">
+      <image href="concept-1-apple.svg" width="168" height="168" />
+    </g>
+
+    <!-- App Details -->
+    <g transform="translate(244, 46)">
+      <text x="0" y="28" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif" font-size="32" font-weight="800" letter-spacing="-0.5">Argon</text>
+      <text x="0" y="56" fill="#94A3B8" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="16" font-weight="500">Live Events & Smart Passports</text>
+      <text x="0" y="78" fill="#06B6D4" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="12" font-weight="700" letter-spacing="1">ARGON TECHNOLOGIES INC.</text>
+
+      <!-- App Store Badges Row -->
+      <g transform="translate(0, 100)">
+        <!-- GET Button -->
+        <rect width="92" height="34" rx="17" fill="#06B6D4" />
+        <text x="46" y="22" fill="#05070D" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="14" font-weight="700" text-anchor="middle">GET</text>
+        <text x="106" y="21" fill="#64748B" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="11">In-App Purchases</text>
+      </g>
+    </g>
+
+    <!-- App Store Metrics Divider & Stats -->
+    <g transform="translate(680, 50)">
+      <!-- Rating Column -->
+      <g transform="translate(0, 0)">
+        <text x="40" y="18" fill="#94A3B8" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="11" font-weight="700" text-anchor="middle">RATINGS</text>
+        <text x="40" y="48" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif" font-size="24" font-weight="800" text-anchor="middle">4.9</text>
+        <text x="40" y="70" fill="#38BDF8" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="13" text-anchor="middle">★★★★★</text>
+        <text x="40" y="90" fill="#64748B" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="11" text-anchor="middle">12.8K Reviews</text>
+      </g>
+
+      <!-- Vertical Divider -->
+      <line x1="100" y1="10" x2="100" y2="100" stroke="#FFFFFF" stroke-opacity="0.12" />
+
+      <!-- Chart Rank Column -->
+      <g transform="translate(130, 0)">
+        <text x="50" y="18" fill="#94A3B8" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="11" font-weight="700" text-anchor="middle">CHART</text>
+        <text x="50" y="48" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif" font-size="24" font-weight="800" text-anchor="middle">#1</text>
+        <text x="50" y="70" fill="#94A3B8" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="12" text-anchor="middle">Events</text>
+        <text x="50" y="90" fill="#64748B" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="11" text-anchor="middle">Cambodia</text>
+      </g>
+
+      <!-- Vertical Divider -->
+      <line x1="220" y1="10" x2="220" y2="100" stroke="#FFFFFF" stroke-opacity="0.12" />
+
+      <!-- Award / Editor's Choice Column -->
+      <g transform="translate(250, 0)">
+        <text x="60" y="18" fill="#94A3B8" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="11" font-weight="700" text-anchor="middle">EDITORIAL</text>
+        <rect x="15" y="30" width="90" height="26" rx="6" fill="#6366F1" fill-opacity="0.25" stroke="#818CF8" stroke-width="1" />
+        <text x="60" y="47" fill="#A5B4FC" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="10" font-weight="700" text-anchor="middle">EDITORS' CHOICE</text>
+        <text x="60" y="76" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="12" font-weight="600" text-anchor="middle">Design Award</text>
+        <text x="60" y="92" fill="#64748B" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="11" text-anchor="middle">Nominee 2026</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Section 2: Three Apple App Icon Directions (Comparison Grid) -->
+  <g transform="translate(60, 440)">
+    <text x="0" y="0" fill="#94A3B8" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif" font-size="18" font-weight="700">Three Apple-Grade Creative Directions</text>
+
+    <!-- Card 1: The Cupertino Prism -->
+    <g transform="translate(0, 24)">
+      <rect width="340" height="380" rx="20" fill="url(#glassPanel)" stroke="#FFFFFF" stroke-opacity="0.08" />
+      <g transform="translate(95, 30)" filter="url(#appIconShadow)">
+        <image href="concept-1-apple.svg" width="150" height="150" />
+      </g>
+      <text x="170" y="215" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif" font-size="18" font-weight="800" text-anchor="middle">1. The Cupertino Prism</text>
+      <text x="170" y="238" fill="#38BDF8" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="12" font-weight="700" text-anchor="middle">SHORTCUTS / VISION PRO MOTIF</text>
+      <text x="30" y="270" fill="#94A3B8" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="12" line-height="18">
+        <tspan x="30" dy="0">• Precision interlocking architectural A</tspan>
+        <tspan x="30" dy="20">• Floating ambient depth and top light rim</tspan>
+        <tspan x="30" dy="20">• Saturated electric cyan into deep indigo</tspan>
+        <tspan x="30" dy="20">• Flawless legibility from 16px to 1024px</tspan>
+      </text>
+      <rect x="90" y="335" width="160" height="28" rx="14" fill="#06B6D4" fill-opacity="0.2" stroke="#22D3EE" stroke-width="1" />
+      <text x="170" y="353" fill="#67E8F9" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="11" font-weight="700" text-anchor="middle">SENIOR RECOMMENDATION</text>
+    </g>
+
+    <!-- Card 2: The Apple Wallet Jewel -->
+    <g transform="translate(370, 24)">
+      <rect width="340" height="380" rx="20" fill="url(#glassPanel)" stroke="#FFFFFF" stroke-opacity="0.08" />
+      <g transform="translate(95, 30)" filter="url(#appIconShadow)">
+        <image href="concept-2-apple.svg" width="150" height="150" />
+      </g>
+      <text x="170" y="215" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif" font-size="18" font-weight="800" text-anchor="middle">2. The Apple Wallet Jewel</text>
+      <text x="170" y="238" fill="#818CF8" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="12" font-weight="700" text-anchor="middle">HOLOGRAPHIC EVENT PASS</text>
+      <text x="30" y="270" fill="#94A3B8" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="12">
+        <tspan x="30" dy="0">• Precision ticket geometry with edge notches</tspan>
+        <tspan x="30" dy="20">• Laser-cut A monogram & NFC dot matrix</tspan>
+        <tspan x="30" dy="20">• Iridescent foil surface with light sweep</tspan>
+        <tspan x="30" dy="20">• Instant association with ticketing & access</tspan>
+      </text>
+      <rect x="90" y="335" width="160" height="28" rx="14" fill="#6366F1" fill-opacity="0.2" stroke="#818CF8" stroke-width="1" />
+      <text x="170" y="353" fill="#C7D2FE" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="11" font-weight="700" text-anchor="middle">HIGH METAPHOR CLARITY</text>
+    </g>
+
+    <!-- Card 3: The Noble Gateway -->
+    <g transform="translate(740, 24)">
+      <rect width="340" height="380" rx="20" fill="url(#glassPanel)" stroke="#FFFFFF" stroke-opacity="0.08" />
+      <g transform="translate(95, 30)" filter="url(#appIconShadow)">
+        <image href="concept-3-apple.svg" width="150" height="150" />
+      </g>
+      <text x="170" y="215" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif" font-size="18" font-weight="800" text-anchor="middle">3. The Noble Gateway</text>
+      <text x="170" y="238" fill="#A855F7" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="12" font-weight="700" text-anchor="middle">ACTIVITY RINGS / SIRI GLOW</text>
+      <text x="30" y="270" fill="#94A3B8" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="12">
+        <tspan x="30" dy="0">• Pure concentric circular continuous geometry</tspan>
+        <tspan x="30" dy="20">• Glowing noble gas plasma torus & portal</tspan>
+        <tspan x="30" dy="20">• High dynamic range volumetric tube lighting</tspan>
+        <tspan x="30" dy="20">• Ultra-minimal, hypnotic Apple aesthetic</tspan>
+      </text>
+      <rect x="90" y="335" width="160" height="28" rx="14" fill="#A855F7" fill-opacity="0.2" stroke="#C084FC" stroke-width="1" />
+      <text x="170" y="353" fill="#E9D5FF" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif" font-size="11" font-weight="700" text-anchor="middle">FUTURISTIC & MINIMAL</text>
+    </g>
+  </g>
+</svg>

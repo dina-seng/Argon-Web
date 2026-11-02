@@ -43,14 +43,14 @@ export function Modal({ isOpen, onClose, title, children, className = '' }: Moda
 
       {/* Modal Dialog Body */}
       <div
-        className={`relative z-10 w-full max-w-lg rounded-2xl border border-white/10 bg-surface-card p-6 shadow-2xl text-white ${className}`}
+        className={`relative z-10 w-full max-w-lg rounded-3xl border border-slate-200/80 bg-white p-6 shadow-2xl text-slate-900 transition-all dark:bg-[#131926] dark:border-slate-800 dark:text-white ${className}`}
       >
-        <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
-          {title && <h2 className="text-lg font-semibold text-white">{title}</h2>}
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
+          {title && <h2 className="text-lg font-bold text-slate-900 dark:text-white">{title}</h2>}
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-gray-400 hover:text-white hover:bg-white/5 transition-colors ml-auto"
+            className="rounded-full p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-white dark:hover:bg-slate-800 transition-colors ml-auto"
             aria-label="Close dialog"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

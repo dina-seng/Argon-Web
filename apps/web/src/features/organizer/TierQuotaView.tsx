@@ -14,7 +14,6 @@ export interface TierItem {
   soldCount: number;
   reservedCount: number;
   available: number;
-  isPaused?: boolean;
 }
 
 export interface EventMetricsResponse {
@@ -86,7 +85,6 @@ export function TierQuotaView({ initialEventId }: TierQuotaViewProps) {
           soldCount: t.soldCount || 0,
           reservedCount: t.reservedCount || 0,
           available: Math.max(0, t.capacity - (t.soldCount || 0) - (t.reservedCount || 0)),
-          isPaused: false,
         })),
       }));
 
@@ -234,19 +232,6 @@ export function TierQuotaView({ initialEventId }: TierQuotaViewProps) {
     }
   };
 
-  const handleToggleSalesPause = (tier: TierItem) => {
-    const nextPaused = !tier.isPaused;
-    setTiers((prev) =>
-      prev.map((t) => (t.id === tier.id ? { ...t, isPaused: nextPaused } : t))
-    );
-
-    setToastMessage(
-      nextPaused
-        ? `Sales paused for "${tier.name}". Checkout is temporarily closed.`
-        : `Sales resumed for "${tier.name}". Checkout is active.`
-    );
-  };
-
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
@@ -277,7 +262,7 @@ export function TierQuotaView({ initialEventId }: TierQuotaViewProps) {
             <Badge label="Inventory Management" variant="info" />
           </div>
           <p className="mt-1 text-sm text-gray-400">
-            Real-time capacity reallocations, inventory limits, and ticket sales pause controls.
+            Real-time capacity reallocations and inventory limit controls.
           </p>
         </div>
 
@@ -390,7 +375,6 @@ export function TierQuotaView({ initialEventId }: TierQuotaViewProps) {
             </thead>
             <tbody className="divide-y divide-white/5 text-gray-300">
               {tiers.map((tier) => {
-                const isPaused = Boolean(tier.isPaused);
                 const isSoldOut = tier.available <= 0 || tier.soldCount >= tier.capacity;
 
                 return (
@@ -420,38 +404,21 @@ export function TierQuotaView({ initialEventId }: TierQuotaViewProps) {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      {isPaused ? (
-                        <Badge label="Sales Paused" variant="warning" />
-                      ) : isSoldOut ? (
+                      {isSoldOut ? (
                         <Badge label="Sold Out" variant="error" />
                       ) : (
                         <Badge label="Selling Live" variant="success" />
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleOpenEditModal(tier)}
-                          className="text-xs"
-                        >
-                          Edit Capacity
-                        </Button>
-
-                        <Button
-                          variant={isPaused ? 'primary' : 'ghost'}
-                          size="sm"
-                          onClick={() => handleToggleSalesPause(tier)}
-                          className={`text-xs ${
-                            isPaused
-                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                              : 'text-amber-400 hover:bg-amber-500/10'
-                          }`}
-                        >
-                          {isPaused ? 'Resume Sales' : 'Pause Sales'}
-                        </Button>
-                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleOpenEditModal(tier)}
+                        className="text-xs"
+                      >
+                        Edit Capacity
+                      </Button>
                     </td>
                   </tr>
                 );

@@ -45,50 +45,6 @@ const inputClass = (invalid: boolean) =>
     invalid ? 'border-red-400' : 'border-[#e4e0d8] hover:border-[#c9c3b8]',
   ].join(' ');
 
-interface DevProfile {
-  label: string;
-  role: string;
-  email: string;
-  password: string;
-  target: string;
-  badgeClass: string;
-}
-
-const DEV_PROFILES: DevProfile[] = [
-  {
-    label: 'Platform Admin',
-    role: 'ADMIN',
-    email: 'admin@argon.kh',
-    password: 'password123',
-    target: '/admin',
-    badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
-  },
-  {
-    label: 'BarCamp Organizer',
-    role: 'ORGANIZER',
-    email: 'barcamp@argon.kh',
-    password: 'password123',
-    target: '/organizer',
-    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  },
-  {
-    label: 'TEDx Organizer',
-    role: 'ORGANIZER',
-    email: 'tedx@argon.kh',
-    password: 'password123',
-    target: '/organizer',
-    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  },
-  {
-    label: 'Customer (Attendee)',
-    role: 'CUSTOMER',
-    email: 'sokha@cadt.edu.kh',
-    password: 'password123',
-    target: '/',
-    badgeClass: 'bg-blue-50 text-blue-700 border-blue-200',
-  },
-];
-
 export default function LoginPage() {
   const { user, isLoading, login } = useAuth();
   const navigate = useNavigate();
@@ -102,7 +58,6 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [activeDevRole, setActiveDevRole] = useState<string | null>(null);
 
   // Already signed in → go home instead of showing the form.
   if (isLoading) return <p className="p-8 text-center text-sm text-gray-500">Checking your session…</p>;
@@ -139,22 +94,6 @@ export default function LoginPage() {
       setPassword('');
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  async function handleQuickLogin(profile: DevProfile) {
-    if (submitting) return;
-    setSubmitting(true);
-    setActiveDevRole(profile.label);
-    setFormError(null);
-    try {
-      const signedInUser = await login(profile.email, profile.password);
-      navigate(from ?? profile.target ?? homeForRole(signedInUser.role), { replace: true });
-    } catch (err) {
-      setFormError(messageFor(err));
-    } finally {
-      setSubmitting(false);
-      setActiveDevRole(null);
     }
   }
 
@@ -246,61 +185,13 @@ export default function LoginPage() {
 
         <Button
           type="submit"
-          isLoading={submitting && !activeDevRole}
+          isLoading={submitting}
           disabled={submitting}
           className="w-full rounded-xl bg-[#292833] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[#403d4a] focus:outline-none focus:ring-4 focus:ring-[#292833]/15 disabled:cursor-not-allowed disabled:opacity-60"
         >
           Sign in
         </Button>
       </form>
-
-      {/* Dev Quick-Login Section */}
-      <div className="mt-6 pt-6 border-t border-[#e4e0d8]">
-        <div className="mb-2.5 flex items-center justify-between">
-          <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#8b8790]">
-            Dev Quick-Login
-          </span>
-          <span className="rounded bg-[#815a31]/10 px-2 py-0.5 text-[10px] font-mono font-semibold text-[#815a31] border border-[#815a31]/20">
-            One-Click Profiles
-          </span>
-        </div>
-        <p className="mb-3 text-xs text-[#716c77]">
-          Sign in instantly with seeded test roles and accounts:
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {DEV_PROFILES.map((p) => {
-            const isTargetActive = activeDevRole === p.label;
-            return (
-              <button
-                key={p.email}
-                type="button"
-                disabled={submitting}
-                onClick={() => handleQuickLogin(p)}
-                className="group flex flex-col items-start rounded-xl border border-[#e4e0d8] bg-[#fbfaf8] p-3 text-left transition hover:border-[#815a31] hover:bg-white hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[#815a31]/20 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <div className="flex w-full items-center justify-between">
-                  <span className="text-xs font-bold text-[#292833] group-hover:text-[#815a31] transition-colors">
-                    {p.label}
-                  </span>
-                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border font-semibold ${p.badgeClass}`}>
-                    {p.role}
-                  </span>
-                </div>
-                <span className="mt-1 font-mono text-[11px] text-[#8b8790] truncate max-w-full">
-                  {p.email}
-                </span>
-                {isTargetActive && (
-                  <span className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 animate-pulse">
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-600" />
-                    Signing in…
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
     </AuthFrame>
   );
 }

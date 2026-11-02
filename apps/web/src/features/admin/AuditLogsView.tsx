@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { api } from '../../lib/api';
@@ -104,11 +103,36 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
   }, [currentPage, actionFilter, entityFilter, fetchAuditLogs]);
 
   const getActionBadgeVariant = (action: string) => {
-    if (action.includes('REFUND')) return 'error';
-    if (action.includes('FORCE')) return 'warning';
-    if (action.includes('PROMOTED')) return 'success';
-    if (action.includes('TIER') || action.includes('QUOTA')) return 'warning';
+    if (action.includes('REFUND') || action.includes('CANCEL') || action.includes('REVOKE')) return 'error';
+    if (action.includes('CHECKED_IN') || action.includes('CONFIRMED') || action.includes('PROMOTED')) return 'success';
+    if (action.includes('OVERRIDE') || action.includes('MODIFIED') || action.includes('UPDATED') || action.includes('QUOTA')) return 'warning';
     return 'info';
+  };
+
+  const exportCsv = () => {
+    if (logs.length === 0) return;
+    const headers = ['Log ID', 'Timestamp', 'Action', 'Actor Name', 'Actor Email', 'Actor Role', 'Entity', 'Entity ID', 'Metadata'];
+    const rows = logs.map((l) => [
+      l.id,
+      l.createdAt,
+      l.action,
+      l.actor?.name || '',
+      l.actor?.email || '',
+      l.actor?.role || '',
+      l.entity,
+      l.entityId,
+      JSON.stringify(l.metadata ?? {}),
+    ]);
+    const csvContent =
+      'data:text/csv;charset=utf-8,' +
+      [headers.join(','), ...rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `argon_audit_logs_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const formatDate = (isoString: string) => {
@@ -124,7 +148,6 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
         date.toLocaleTimeString([], {
           hour: '2-digit',
           minute: '2-digit',
-          second: '2-digit',
         })
       );
     } catch {
@@ -133,69 +156,91 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in text-white pb-12">
+    <div className="space-y-6 animate-fade-in text-slate-800 dark:text-slate-100 pb-16">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-white/10 pb-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200/70 dark:border-slate-800 pb-6">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl sm:text-3xl font-display font-bold tracking-tight text-white">
-              System Audit Logs & Governance Trail
+            <h1 className="text-2xl sm:text-3xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white">
+              System Audit Trail
             </h1>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400 border border-emerald-500/20">
-              Immutable
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border border-orange-200 dark:border-orange-900/60 bg-orange-50 dark:bg-orange-950/40 text-[#FF5B22]">
+              {totalLogs} Events
             </span>
           </div>
-          <p className="mt-1 text-sm text-gray-400">
-            Cryptographic ledger tracking administrative overrides, role promotions, and critical inventory mutations.
+          <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+            Append-only security log tracking administrative overrides, refunds, quota edits, and access elevation.
           </p>
         </div>
 
-        <Button
-          variant="secondary"
-          size="md"
-          onClick={() => fetchAuditLogs(currentPage, actionFilter, entityFilter)}
-          isLoading={isLoading}
-          className="flex items-center gap-2 self-start sm:self-auto"
-        >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
-          <span>Refresh Logs</span>
-        </Button>
+        <div className="flex items-center gap-3 self-start sm:self-auto">
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={exportCsv}
+            disabled={logs.length === 0}
+            className="flex items-center gap-2 rounded-2xl bg-white dark:bg-[#131926] border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+          >
+            <svg className="h-4 w-4 text-slate-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span className="font-semibold text-xs">Export CSV</span>
+          </Button>
+
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={() => fetchAuditLogs(currentPage, actionFilter, entityFilter)}
+            isLoading={isLoading}
+            className="flex items-center gap-2 rounded-2xl bg-white dark:bg-[#131926] border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+          >
+            <svg className="h-4 w-4 text-slate-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            <span className="font-semibold text-xs">Refresh Logs</span>
+          </Button>
+        </div>
       </div>
 
       {/* Error Alert Banner */}
       {error && (
-        <div className="flex items-center justify-between rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+        <div className="flex items-center justify-between rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/20 px-5 py-4 text-sm text-rose-700 dark:text-rose-400">
           <div className="flex items-center gap-3">
-            <svg className="h-5 w-5 shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-5 w-5 shrink-0 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>
+            <span className="font-medium">
               <strong>API Error:</strong> {error}
             </span>
           </div>
-          <Button variant="secondary" size="sm" onClick={() => fetchAuditLogs(currentPage, actionFilter, entityFilter)}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => fetchAuditLogs(currentPage, actionFilter, entityFilter)}
+            className="rounded-full bg-white dark:bg-[#131926] text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800"
+          >
             Retry
           </Button>
         </div>
       )}
 
       {/* Filter Tabs Toolbar */}
-      <Card className="space-y-4">
+      <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-[#131926] p-5 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-mono text-gray-400 uppercase tracking-wider mr-1">
+            <span className="text-xs font-mono text-slate-400 uppercase tracking-wider mr-1 font-bold">
               Action:
             </span>
             {[
               { id: 'ALL', label: 'All Actions' },
-              { id: 'BOOKING_FORCE_CONFIRMED', label: 'Force Confirmed' },
+              { id: 'EVENT_STATUS_UPDATED', label: 'Event Moderated' },
+              { id: 'TICKET_CHECKED_IN', label: 'Check-In Override' },
+              { id: 'BOOKING_FORCE_CONFIRMED', label: 'Confirmed' },
               { id: 'BOOKING_REFUNDED', label: 'Refunded' },
               { id: 'USER_ROLE_PROMOTED', label: 'Role Promoted' },
               { id: 'USER_ROLE_UPDATED', label: 'Role Updated' },
@@ -208,10 +253,10 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
                   setActionFilter(tab.id);
                   setCurrentPage(1);
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
                   actionFilter === tab.id
-                    ? 'bg-emerald-600 text-white font-semibold shadow-sm'
-                    : 'text-gray-400 hover:text-white bg-surface-elevated hover:bg-white/5 border border-white/5'
+                    ? 'bg-[#FF5B22] text-white shadow-sm font-bold'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-900 hover:bg-slate-200/80 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-800'
                 }`}
               >
                 {tab.label}
@@ -220,7 +265,7 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono text-gray-400 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
               Entity:
             </span>
             <select
@@ -229,46 +274,48 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
                 setEntityFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="rounded-xl border border-white/10 bg-surface-elevated px-3 py-1.5 text-xs font-medium text-white shadow-sm focus:border-emerald-500 focus:outline-none"
+              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-sm focus:border-[#FF5B22] focus:outline-none"
             >
               <option value="ALL">All Entities</option>
               <option value="Booking">Booking</option>
               <option value="User">User</option>
+              <option value="Event">Event</option>
+              <option value="Ticket">Ticket</option>
               <option value="TicketTier">TicketTier</option>
             </select>
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Audit Log Table */}
-      <Card className="overflow-hidden p-0">
+      <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-[#131926] shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-surface-elevated/70 border-b border-white/10 text-xs font-mono uppercase tracking-wider text-gray-400">
+            <thead className="bg-slate-50/80 dark:bg-slate-900/40 border-b border-slate-100 dark:border-slate-800 text-xs font-bold uppercase tracking-wider text-slate-400">
               <tr>
-                <th className="px-6 py-3.5 w-10"></th>
-                <th className="px-6 py-3.5">Timestamp</th>
-                <th className="px-6 py-3.5">Action</th>
-                <th className="px-6 py-3.5">Actor</th>
-                <th className="px-6 py-3.5">Entity & ID</th>
-                <th className="px-6 py-3.5 text-right">Details</th>
+                <th className="px-6 py-4 w-10"></th>
+                <th className="px-6 py-4">Timestamp</th>
+                <th className="px-6 py-4">Action</th>
+                <th className="px-6 py-4">Actor</th>
+                <th className="px-6 py-4">Entity & ID</th>
+                <th className="px-6 py-4 text-right">Details</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
-                      <span className="text-xs text-gray-400 font-mono">Loading immutable audit logs…</span>
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#FF5B22] border-t-transparent" />
+                      <span className="text-xs text-slate-500 font-mono font-medium">Loading immutable audit logs…</span>
                     </div>
                   </td>
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <svg className="h-8 w-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="h-8 w-8 text-slate-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -276,8 +323,8 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
                           d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                         />
                       </svg>
-                      <span className="font-medium text-white">No audit records found</span>
-                      <span className="text-xs text-gray-400">Try selecting a broader filter.</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">No audit records found</span>
+                      <span className="text-xs text-slate-400">Try selecting a broader filter or resetting criteria.</span>
                     </div>
                   </td>
                 </tr>
@@ -287,19 +334,19 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
                   return (
                     <tr
                       key={log.id}
-                      className="hover:bg-white/[0.02] transition-colors group align-top"
+                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group align-top"
                     >
                       {/* Expand Chevron */}
                       <td className="pl-6 py-4">
                         <button
                           type="button"
                           onClick={() => toggleExpand(log.id)}
-                          className="text-gray-400 hover:text-white transition-transform"
+                          className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-transform"
                           aria-label={isExpanded ? 'Collapse row' : 'Expand row'}
                         >
                           <svg
                             className={`h-4 w-4 transition-transform duration-200 ${
-                              isExpanded ? 'rotate-90 text-emerald-400' : ''
+                              isExpanded ? 'rotate-90 text-[#FF5B22]' : ''
                             }`}
                             fill="none"
                             stroke="currentColor"
@@ -311,7 +358,7 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
                       </td>
 
                       {/* Timestamp */}
-                      <td className="px-6 py-4 font-mono text-xs text-gray-300 whitespace-nowrap">
+                      <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
                         {formatDate(log.createdAt)}
                       </td>
 
@@ -326,16 +373,16 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
 
                       {/* Actor */}
                       <td className="px-6 py-4">
-                        <div className="font-semibold text-white text-xs">
+                        <div className="font-bold text-slate-900 dark:text-white text-xs">
                           {log.actor?.name || log.actor?.email || log.actorId}
                         </div>
                         {log.actor?.email && (
-                          <div className="font-mono text-[11px] text-gray-400">
+                          <div className="font-mono text-[11px] text-slate-400">
                             {log.actor.email}
                           </div>
                         )}
                         {log.actor?.role && (
-                          <span className="inline-block mt-0.5 text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/5 text-gray-400 border border-white/10">
+                          <span className="inline-block mt-0.5 text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-semibold">
                             {log.actor.role}
                           </span>
                         )}
@@ -343,10 +390,10 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
 
                       {/* Entity & ID */}
                       <td className="px-6 py-4">
-                        <div className="font-mono text-xs font-semibold text-white">
+                        <div className="font-bold text-xs text-slate-900 dark:text-white">
                           {log.entity}
                         </div>
-                        <div className="font-mono text-[11px] text-gray-400 truncate max-w-xs">
+                        <div className="font-mono text-[11px] text-slate-400 truncate max-w-xs">
                           #{log.entityId}
                         </div>
                       </td>
@@ -356,7 +403,7 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
                         <button
                           type="button"
                           onClick={() => toggleExpand(log.id)}
-                          className="text-xs font-mono text-emerald-400 hover:text-emerald-300 font-medium"
+                          className="text-xs font-mono text-[#FF5B22] hover:text-[#e04f1c] font-semibold"
                         >
                           {isExpanded ? 'Hide Payload' : 'View Payload'}
                         </button>
@@ -364,16 +411,16 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
                         {/* Expandable JSON Payload */}
                         {isExpanded && (
                           <div className="mt-3 text-left">
-                            <div className="rounded-xl border border-white/10 bg-surface-elevated/90 p-3.5 shadow-inner">
-                              <div className="flex items-center justify-between pb-2 border-b border-white/10 mb-2">
-                                <span className="font-mono text-[10px] uppercase tracking-wider text-emerald-400 font-semibold">
+                            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/80 p-4 shadow-inner">
+                              <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800 mb-2">
+                                <span className="font-mono text-[10px] uppercase tracking-wider text-[#FF5B22] font-bold">
                                   Audit Payload Metadata
                                 </span>
-                                <span className="font-mono text-[10px] text-gray-500">
+                                <span className="font-mono text-[10px] text-slate-400">
                                   UUID: {log.id}
                                 </span>
                               </div>
-                              <pre className="font-mono text-[11px] text-gray-300 whitespace-pre-wrap overflow-x-auto max-h-48 leading-relaxed">
+                              <pre className="font-mono text-[11px] text-slate-700 dark:text-slate-300 whitespace-pre-wrap overflow-x-auto max-h-48 leading-relaxed">
                                 {JSON.stringify(log.metadata ?? { info: 'No extra metadata recorded' }, null, 2)}
                               </pre>
                             </div>
@@ -389,10 +436,10 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
         </div>
 
         {/* Pagination Bar */}
-        <div className="flex items-center justify-between border-t border-white/10 px-6 py-3.5 bg-surface-elevated/30">
-          <div className="text-xs text-gray-400">
-            Showing <span className="font-mono text-white font-medium">{logs.length}</span> of{' '}
-            <span className="font-mono text-white font-medium">{totalLogs}</span> audit records
+        <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 px-6 py-4 bg-slate-50/50 dark:bg-slate-900/30">
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+            Showing <span className="font-mono text-slate-900 dark:text-white font-bold">{logs.length}</span> of{' '}
+            <span className="font-mono text-slate-900 dark:text-white font-bold">{totalLogs}</span> audit records
           </div>
 
           <div className="flex items-center gap-2">
@@ -401,10 +448,11 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
               size="sm"
               disabled={currentPage <= 1 || isLoading}
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="rounded-2xl bg-white dark:bg-[#161D2E] border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               Previous
             </Button>
-            <span className="text-xs font-mono text-gray-300 px-2">
+            <span className="text-xs font-mono text-slate-600 dark:text-slate-400 px-2 font-medium">
               Page {currentPage} of {totalPages}
             </span>
             <Button
@@ -412,12 +460,13 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
               size="sm"
               disabled={currentPage >= totalPages || isLoading}
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              className="rounded-2xl bg-white dark:bg-[#161D2E] border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               Next
             </Button>
           </div>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

@@ -1,0 +1,43 @@
+<svg fill="#ff5b22" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 256" width="768" height="256"><title>Argon Lockup</title>
+  
+  <!-- Brand Symbol scaled to 160x160 centered at (130, 128) -->
+  <g transform="translate(50, 48) scale(0.625)">
+    
+  
+  <!-- Left Ascending Pylon -->
+  <path fill="#ff5b22" d="
+    M 120 32
+    L 36 220
+    L 88 220
+    L 136 112
+    L 136 32
+    Z
+  "/>
+  <!-- Right Descending Pylon & Integrated Gate Crossbar -->
+  <path fill="#ff5b22" d="
+    M 148 32
+    L 148 134
+    L 106 134
+    L 94 162
+    L 172 162
+    L 146 220
+    L 220 220
+    L 148 32
+    Z
+  "/>
+
+  </g>
+  <!-- Wordmark 'ARGON' in bold neo-grotesque vector geometry -->
+  <g fill="#ff5b22" transform="translate(260, 80)">
+    <!-- A -->
+    <path d="M 28 0 L 64 0 L 92 96 L 68 96 L 62 72 L 30 72 L 24 96 L 0 96 Z M 46 20 L 35 54 L 57 54 Z"/>
+    <!-- R -->
+    <path d="M 108 0 L 158 0 C 176 0 188 10 188 28 C 188 42 178 50 164 54 L 190 96 L 164 96 L 140 58 L 132 58 L 132 96 L 108 96 Z M 132 18 L 132 40 L 156 40 C 164 40 168 36 168 29 C 168 22 164 18 156 18 Z"/>
+    <!-- G -->
+    <path d="M 252 0 C 280 0 298 20 298 48 L 274 48 C 274 32 264 20 252 20 C 236 20 226 32 226 48 C 226 64 236 76 252 76 C 264 76 272 70 274 58 L 254 58 L 254 42 L 298 42 L 298 90 C 286 94 270 96 252 96 C 220 96 202 74 202 48 C 202 22 222 0 252 0 Z"/>
+    <!-- O -->
+    <path d="M 358 0 C 386 0 406 22 406 48 C 406 74 386 96 358 96 C 330 96 310 74 310 48 C 310 22 330 0 358 0 Z M 358 20 C 342 20 334 32 334 48 C 334 64 342 76 358 76 C 374 76 382 64 382 48 C 382 32 374 20 358 20 Z"/>
+    <!-- N -->
+    <path d="M 422 0 L 446 0 L 490 66 L 490 0 L 514 0 L 514 96 L 490 96 L 446 30 L 446 96 L 422 96 Z"/>
+  </g>
+</svg>

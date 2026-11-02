@@ -5,6 +5,13 @@ export type {
   RecentActivityItem,
 } from './AdminDashboardView';
 
+export { AdminEventsView } from './AdminEventsView';
+export type {
+  AdminEventItem,
+  AdminEventTier,
+  PaginatedEventsResponse,
+} from './AdminEventsView';
+
 export { UserManagementView } from './UserManagementView';
 export type {
   UserManagementViewProps,
@@ -25,3 +32,6 @@ export type {
   AuditActor,
   PaginatedAuditLogsResponse,
 } from './AuditLogsView';
+
+export { SystemHealthView } from './SystemHealthView';
+export type { SystemHealthResponse } from './SystemHealthView';

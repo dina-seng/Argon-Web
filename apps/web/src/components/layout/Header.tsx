@@ -8,7 +8,6 @@ import {
   QrCode,
   Ticket,
   Compass,
-  RefreshCw,
   ChevronDown,
   Shield,
   LayoutDashboard,
@@ -25,7 +24,7 @@ export function Header({ onToggleSidebar }: HeaderProps = {}) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, role, isAdmin, isOrganizer, logout } = useAuth();
-  const { tickets, resetDefaults } = useTicketingStore();
+  const { tickets } = useTicketingStore();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const isTicketsActive = location.pathname.startsWith('/tickets');
@@ -79,11 +78,12 @@ export function Header({ onToggleSidebar }: HeaderProps = {}) {
           )}
 
           <Link to="/" className="flex items-center gap-2.5 group">
-            <span className="font-display text-2xl font-black tracking-tight text-white group-hover:text-primary-300 transition-colors">
+            <img src="/brand/kit/argon-white.svg" alt="Argon" className="h-7 w-7 object-contain transition-transform group-hover:scale-105" />
+            <span className="font-display text-2xl font-black tracking-tight text-white group-hover:text-cyan-300 transition-colors">
               argon
             </span>
             {/* Signature neon dash */}
-            <span className="w-5 h-1 rounded-full bg-gradient-to-r from-cyan-400 via-primary-500 to-fuchsia-500 shadow-[0_0_8px_rgba(120,87,255,0.8)]" />
+            <span className="w-5 h-1 rounded-full bg-gradient-to-r from-cyan-400 via-primary-500 to-indigo-500 shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
           </Link>
 
           {(isAdminActive || isOrganizerActive) && (
@@ -95,92 +95,69 @@ export function Header({ onToggleSidebar }: HeaderProps = {}) {
             </div>
           )}
 
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <Link
-              to="/"
-              className={`relative py-5 transition-colors ${
-                isDiscoverActive
-                  ? 'text-white font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <Compass className="w-4 h-4 opacity-70" />
-                Discover
-              </span>
-              {isDiscoverActive && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500 rounded-full" />
-              )}
-            </Link>
-
-            <Link
-              to="/tickets"
-              className={`relative py-5 transition-colors ${
-                isTicketsActive
-                  ? 'text-white font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <Ticket className="w-4 h-4 opacity-70" />
-                My Tickets
-                {activeTicketCount > 0 && (
-                  <span className="px-1.5 py-0.2 bg-primary-600/30 text-primary-300 text-[11px] rounded-full font-mono border border-primary-500/30">
-                    {activeTicketCount}
-                  </span>
+          {/* Consumer navigation – hidden in Admin and Organizer backoffice consoles */}
+          {!isAdminActive && !isOrganizerActive && (
+            <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
+              <Link
+                to="/"
+                className={`relative py-5 transition-colors ${
+                  isDiscoverActive
+                    ? 'text-white font-semibold'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <Compass className="w-4 h-4 opacity-70" />
+                  Discover
+                </span>
+                {isDiscoverActive && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500 rounded-full" />
                 )}
-              </span>
-              {isTicketsActive && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500 rounded-full" />
-              )}
-            </Link>
+              </Link>
 
-            <Link
-              to="/organizer/scanner"
-              className={`relative py-5 transition-colors flex items-center gap-1.5 ${
-                isScannerActive
-                  ? 'text-purple-300 font-semibold'
-                  : 'text-zinc-400 hover:text-purple-300'
-              }`}
-            >
-              <QrCode className="w-4 h-4 text-purple-400" />
-              <span>Organizer Scanner</span>
-              <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold tracking-wider bg-purple-950/70 text-purple-300 border border-purple-800/60 rounded">
-                Gate
-              </span>
-              {isScannerActive && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-500 rounded-full" />
-              )}
-            </Link>
-
-            {isAdmin && (
               <Link
-                to="/admin"
-                className={`relative py-5 transition-colors flex items-center gap-1.5 ${
-                  isAdminActive
-                    ? 'text-indigo-300 font-semibold'
-                    : 'text-zinc-400 hover:text-indigo-300'
+                to="/tickets"
+                className={`relative py-5 transition-colors ${
+                  isTicketsActive
+                    ? 'text-white font-semibold'
+                    : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                <Shield className="w-4 h-4 text-indigo-400" />
-                <span>Admin Console</span>
+                <span className="flex items-center gap-1.5">
+                  <Ticket className="w-4 h-4 opacity-70" />
+                  My Tickets
+                  {activeTicketCount > 0 && (
+                    <span className="px-1.5 py-0.2 bg-primary-600/30 text-primary-300 text-[11px] rounded-full font-mono border border-primary-500/30">
+                      {activeTicketCount}
+                    </span>
+                  )}
+                </span>
+                {isTicketsActive && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500 rounded-full" />
+                )}
               </Link>
-            )}
 
-            {(isOrganizer || isAdmin) && (
-              <Link
-                to="/organizer"
-                className={`relative py-5 transition-colors flex items-center gap-1.5 ${
-                  isOrganizerActive
-                    ? 'text-emerald-300 font-semibold'
-                    : 'text-zinc-400 hover:text-emerald-300'
-                }`}
-              >
-                <LayoutDashboard className="w-4 h-4 text-emerald-400" />
-                <span>Organizer Portal</span>
-              </Link>
-            )}
-          </nav>
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  className="relative py-5 transition-colors flex items-center gap-1.5 text-zinc-400 hover:text-indigo-300"
+                >
+                  <Shield className="w-4 h-4 text-indigo-400" />
+                  <span>Admin Console</span>
+                </Link>
+              )}
+
+              {(isOrganizer || isAdmin) && (
+                <Link
+                  to="/organizer"
+                  className="relative py-5 transition-colors flex items-center gap-1.5 text-zinc-400 hover:text-emerald-300"
+                >
+                  <LayoutDashboard className="w-4 h-4 text-emerald-400" />
+                  <span>Organizer Portal</span>
+                </Link>
+              )}
+            </nav>
+          )}
         </div>
 
         {/* Right Navigation */}
@@ -261,61 +238,37 @@ export function Header({ onToggleSidebar }: HeaderProps = {}) {
                         </button>
                       )}
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDropdownOpen(false);
-                          navigate('/tickets');
-                        }}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800/60 transition"
-                      >
-                        <span className="flex items-center gap-2">
-                          <Ticket className="w-3.5 h-3.5 text-zinc-400" />
-                          My Tickets Pass
-                        </span>
-                      </button>
+                      {!isAdminActive && !isOrganizerActive && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDropdownOpen(false);
+                            navigate('/tickets');
+                          }}
+                          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800/60 transition"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Ticket className="w-3.5 h-3.5 text-zinc-400" />
+                            My Tickets Pass
+                          </span>
+                        </button>
+                      )}
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDropdownOpen(false);
-                          navigate('/organizer/scanner');
-                        }}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-purple-300 hover:text-white hover:bg-purple-950/40 transition"
-                      >
-                        <span className="flex items-center gap-2">
-                          <QrCode className="w-3.5 h-3.5 text-purple-400" />
-                          Organizer Scanner
-                        </span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDropdownOpen(false);
-                          navigate('/checkout/tier-rooftop-ga');
-                        }}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800/60 transition"
-                      >
-                        <span>Simulate New Booking Flow</span>
-                        <span className="text-[10px] text-primary-400 font-medium">Demo</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          resetDefaults();
-                          setDropdownOpen(false);
-                          navigate('/tickets');
-                        }}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-red-400 hover:bg-red-950/30 transition border-t border-zinc-800/60 mt-1 pt-2"
-                      >
-                        <span className="flex items-center gap-1.5">
-                          <RefreshCw className="w-3 h-3" />
-                          Reset All Demo Data
-                        </span>
-                        <span className="text-[10px] text-zinc-500">Seed</span>
-                      </button>
+                      {(isOrganizer || isAdmin) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDropdownOpen(false);
+                            navigate('/scanner');
+                          }}
+                          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-purple-300 hover:text-white hover:bg-purple-950/40 transition"
+                        >
+                          <span className="flex items-center gap-2">
+                            <QrCode className="w-3.5 h-3.5 text-purple-400" />
+                            Gate Scanner
+                          </span>
+                        </button>
+                      )}
 
                       <button
                         type="button"

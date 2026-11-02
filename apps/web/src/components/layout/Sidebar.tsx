@@ -102,7 +102,7 @@ const organizerNavItems: NavItem[] = [
 
 const adminNavItems: NavItem[] = [
   {
-    label: 'Platform Overview',
+    label: 'Overview',
     path: '/admin',
     end: true,
     icon: ({ className = 'h-5 w-5' }) => (
@@ -117,7 +117,35 @@ const adminNavItems: NavItem[] = [
     ),
   },
   {
-    label: 'User Directory',
+    label: 'Events',
+    path: '/admin/events',
+    icon: ({ className = 'h-5 w-5' }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.75}
+          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+        />
+      </svg>
+    ),
+  },
+  {
+    label: 'Bookings',
+    path: '/admin/bookings',
+    icon: ({ className = 'h-5 w-5' }) => (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.75}
+          d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+        />
+      </svg>
+    ),
+  },
+  {
+    label: 'Users',
     path: '/admin/users',
     icon: ({ className = 'h-5 w-5' }) => (
       <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -131,21 +159,7 @@ const adminNavItems: NavItem[] = [
     ),
   },
   {
-    label: 'Transaction Overrides',
-    path: '/admin/transactions',
-    icon: ({ className = 'h-5 w-5' }) => (
-      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={1.75}
-          d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-        />
-      </svg>
-    ),
-  },
-  {
-    label: 'System Audit Logs',
+    label: 'Audit Logs',
     path: '/admin/audit',
     icon: ({ className = 'h-5 w-5' }) => (
       <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -170,14 +184,14 @@ export function Sidebar({ onClose }: SidebarProps) {
       end={item.end}
       onClick={onClose}
       className={({ isActive }) =>
-        `group flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm transition-all duration-150 ${
+        `group flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs transition-all duration-150 ${
           isActive
-            ? 'bg-primary-500/10 text-primary-400 font-semibold border-l-2 border-primary-500'
-            : 'text-gray-400 hover:text-gray-200 hover:bg-white/5 border-l-2 border-transparent font-medium'
+            ? 'bg-[#d4ff32] text-black font-bold shadow-sm shadow-[#d4ff32]/25'
+            : 'text-zinc-400 hover:text-white hover:bg-white/[0.05] font-medium'
         }`
       }
     >
-      <item.icon className="h-4 w-4 shrink-0 transition-colors group-hover:text-white" />
+      <item.icon className="h-4 w-4 shrink-0 transition-colors" />
       <span className="truncate">{item.label}</span>
     </NavLink>
   );
@@ -218,7 +232,7 @@ export function Sidebar({ onClose }: SidebarProps) {
         {isAdmin && (
           <div>
             <div className="px-3 pb-2 text-[10px] font-mono font-semibold uppercase tracking-wider text-gray-400">
-              Platform Governance
+              Admin
             </div>
             <nav className="space-y-1">{adminNavItems.map(renderNavLink)}</nav>
           </div>
@@ -234,19 +248,21 @@ export function Sidebar({ onClose }: SidebarProps) {
           </div>
         )}
 
-        {/* Public Feed link */}
-        <div className="border-t border-white/10 pt-4">
-          <NavLink
-            to="/"
-            onClick={onClose}
-            className="group flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm text-gray-400 hover:text-gray-200 hover:bg-white/5 font-medium"
-          >
-            <svg className="h-4 w-4 shrink-0 transition-colors group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            <span>Back to Public Feed</span>
-          </NavLink>
-        </div>
+        {/* Public Feed link – hidden for Admin to preserve backoffice boundary */}
+        {!isAdmin && (
+          <div className="border-t border-white/10 pt-4">
+            <NavLink
+              to="/"
+              onClick={onClose}
+              className="group flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm text-gray-400 hover:text-gray-200 hover:bg-white/5 font-medium"
+            >
+              <svg className="h-4 w-4 shrink-0 transition-colors group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span>Back to Public Feed</span>
+            </NavLink>
+          </div>
+        )}
       </div>
 
       {/* Bottom Footer Info */}

@@ -1,0 +1,24 @@
+<svg fill="#ffffff" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256"><title>Argon</title>
+  
+  <!-- Left Ascending Pylon -->
+  <path fill="#ffffff" d="
+    M 120 32
+    L 36 220
+    L 88 220
+    L 136 112
+    L 136 32
+    Z
+  "/>
+  <!-- Right Descending Pylon & Integrated Gate Crossbar -->
+  <path fill="#ffffff" d="
+    M 148 32
+    L 148 134
+    L 106 134
+    L 94 162
+    L 172 162
+    L 146 220
+    L 220 220
+    L 148 32
+    Z
+  "/>
+</svg>
