@@ -58,18 +58,20 @@ export function AdminDashboardView({ onNavigateTab: _onNavigateTab }: AdminDashb
   const [timeRange, setTimeRange] = useState<'7D' | '30D' | 'ALL'>('7D');
   const [hoveredBarIndex, setHoveredBarIndex] = useState<number | null>(null);
 
-  const fetchOverview = useCallback(async (isManual = false) => {
+  const fetchOverview = useCallback(async (isManual = false, selectedRange?: '7D' | '30D' | 'ALL') => {
     if (isManual) setIsRefreshing(true);
     else setIsLoading(true);
     setError(null);
 
+    const rangeToFetch = selectedRange ?? timeRange;
+
     try {
       let res: AdminOverviewMetrics;
       try {
-        res = await api.get<AdminOverviewMetrics>('/api/v1/admin/metrics/overview');
+        res = await api.get<AdminOverviewMetrics>(`/api/v1/admin/metrics/overview?timeRange=${rangeToFetch}`);
       } catch (err: unknown) {
         if (err instanceof Error && err.message.includes('404')) {
-          res = await api.get<AdminOverviewMetrics>('/admin/metrics/overview');
+          res = await api.get<AdminOverviewMetrics>(`/admin/metrics/overview?timeRange=${rangeToFetch}`);
         } else {
           throw err;
         }
@@ -82,7 +84,12 @@ export function AdminDashboardView({ onNavigateTab: _onNavigateTab }: AdminDashb
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [timeRange]);
+
+  const handleRangeChange = (range: '7D' | '30D' | 'ALL') => {
+    setTimeRange(range);
+    fetchOverview(false, range);
+  };
 
   useEffect(() => {
     fetchOverview();
@@ -108,12 +115,8 @@ export function AdminDashboardView({ onNavigateTab: _onNavigateTab }: AdminDashb
 
   // Real daily velocity points filtered by selected time range
   const timelinePoints = useMemo(() => {
-    const raw = metrics?.dailyVelocity ?? [];
-    if (raw.length === 0) return [];
-    if (timeRange === '7D') return raw.slice(-7);
-    if (timeRange === '30D') return raw.slice(-30);
-    return raw;
-  }, [metrics?.dailyVelocity, timeRange]);
+    return metrics?.dailyVelocity ?? [];
+  }, [metrics?.dailyVelocity]);
 
   const maxRevenue = useMemo(() => {
     if (timelinePoints.length === 0) return 100;
@@ -150,7 +153,7 @@ export function AdminDashboardView({ onNavigateTab: _onNavigateTab }: AdminDashb
               <button
                 key={range}
                 type="button"
-                onClick={() => setTimeRange(range)}
+                onClick={() => handleRangeChange(range)}
                 className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 ${
                   timeRange === range
                     ? 'bg-[#FF5B22] text-white shadow-sm font-bold scale-105'

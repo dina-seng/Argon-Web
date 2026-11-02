@@ -149,3 +149,24 @@ export async function logoutUser(
 export async function isAccessTokenRevoked(app: FastifyInstance, accessToken: string): Promise<boolean> {
   return (await app.redis.exists(accessTokenKey(accessToken))) === 1;
 }
+
+const userRevocationKey = (userId: string) => `revoked:user:${userId}`;
+
+export async function revokeUserSessions(app: FastifyInstance, userId: string): Promise<void> {
+  if (app.redis && typeof app.redis.set === 'function') {
+    await app.redis.set(userRevocationKey(userId), '1', 'EX', 86400);
+  }
+}
+
+export async function restoreUserSessions(app: FastifyInstance, userId: string): Promise<void> {
+  if (app.redis && typeof app.redis.del === 'function') {
+    await app.redis.del(userRevocationKey(userId));
+  }
+}
+
+export async function isUserRevoked(app: FastifyInstance, userId: string): Promise<boolean> {
+  if (app.redis && typeof app.redis.exists === 'function') {
+    return (await app.redis.exists(userRevocationKey(userId))) === 1;
+  }
+  return false;
+}

@@ -18,16 +18,18 @@ import type {
   UserDetailsParams,
   ToggleUserSuspensionParams,
   ToggleUserSuspensionBody,
+  GetPlatformOverviewQuery,
 } from './schema';
 import * as adminService from './service';
 
 export async function getPlatformOverviewController(
-  req: FastifyRequest,
+  req: FastifyRequest<{ Querystring: GetPlatformOverviewQuery }>,
   reply: FastifyReply
 ): Promise<void> {
   const overview = await adminService.getPlatformOverview(
     req.server.prisma,
-    req.server
+    req.server,
+    req.query
   );
   reply.status(200).send(overview);
 }
@@ -185,7 +187,8 @@ export async function toggleUserSuspensionController(
     adminUser,
     req.params.userId,
     req.body.suspend,
-    req.body.reason
+    req.body.reason,
+    req.server
   );
   reply.status(200).send(result);
 }

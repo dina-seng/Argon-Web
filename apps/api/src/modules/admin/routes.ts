@@ -20,6 +20,7 @@ import {
   userDetailsParamsSchema,
   toggleUserSuspensionParamsSchema,
   toggleUserSuspensionBodySchema,
+  getPlatformOverviewQuerySchema,
 } from './schema';
 import {
   getPlatformOverviewController,
@@ -42,6 +43,7 @@ export async function adminRoutes(app: FastifyInstance) {
 
   // 1. Executive Platform Overview & Real Telemetry
   app.get('/metrics/overview', {
+    schema: { querystring: getPlatformOverviewQuerySchema },
     preHandler: adminPreHandlers,
     handler: getPlatformOverviewController,
   });

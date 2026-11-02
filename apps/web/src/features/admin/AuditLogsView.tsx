@@ -103,9 +103,9 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
   }, [currentPage, actionFilter, entityFilter, fetchAuditLogs]);
 
   const getActionBadgeVariant = (action: string) => {
-    if (action.includes('REFUND') || action.includes('CANCEL') || action.includes('REVOKE')) return 'error';
-    if (action.includes('CHECKED_IN') || action.includes('CONFIRMED') || action.includes('PROMOTED')) return 'success';
-    if (action.includes('OVERRIDE') || action.includes('MODIFIED') || action.includes('UPDATED') || action.includes('QUOTA')) return 'warning';
+    if (action.includes('REFUND') || action.includes('CANCEL') || action.includes('REVOKE') || action.includes('SUSPENDED')) return 'error';
+    if (action.includes('CHECKED_IN') || action.includes('CONFIRMED') || action.includes('PROMOTED') || action.includes('RESTORED')) return 'success';
+    if (action.includes('OVERRIDE') || action.includes('MODIFIED') || action.includes('UPDATED')) return 'warning';
     return 'info';
   };
 
@@ -238,13 +238,12 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
             </span>
             {[
               { id: 'ALL', label: 'All Actions' },
-              { id: 'EVENT_STATUS_UPDATED', label: 'Event Moderated' },
-              { id: 'TICKET_CHECKED_IN', label: 'Check-In Override' },
+              { id: 'EVENT_STATUS_UPDATED', label: 'Events Moderated' },
+              { id: 'TICKET_CHECKED_IN', label: 'Check-Ins' },
               { id: 'BOOKING_FORCE_CONFIRMED', label: 'Confirmed' },
               { id: 'BOOKING_REFUNDED', label: 'Refunded' },
-              { id: 'USER_ROLE_PROMOTED', label: 'Role Promoted' },
-              { id: 'USER_ROLE_UPDATED', label: 'Role Updated' },
-              { id: 'TIER_QUOTA_MODIFIED', label: 'Tier Quota' },
+              { id: 'USER_ROLE_UPDATED', label: 'Roles Changed' },
+              { id: 'USER_ACCOUNT_SUSPENDED', label: 'Suspensions' },
             ].map((tab) => (
               <button
                 key={tab.id}

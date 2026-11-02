@@ -24,9 +24,11 @@ import type {
   GetAuditLogsQuery,
   AdminBookingsQuery,
   GetAdminEventsQuery,
+  GetPlatformOverviewQuery,
 } from './schema';
 import { generateHmacSignature } from '../../lib/hmac.js';
 import { env } from '../../config/env.js';
+import { revokeUserSessions, restoreUserSessions } from '../auth/service.js';
 
 export class HttpError extends Error {
   statusCode: number;
@@ -53,7 +55,8 @@ const ROLE_RANK: Record<Role, number> = {
 
 export async function getPlatformOverview(
   prisma: PrismaClient,
-  app?: FastifyInstance
+  app?: FastifyInstance,
+  query?: GetPlatformOverviewQuery
 ) {
   const [
     totalPaidBookings,
@@ -122,15 +125,17 @@ export async function getPlatformOverview(
     dbStatus = 'DOWN';
   }
 
-  let redisStatus = 'CONNECTED';
+  let redisStatus: 'HEALTHY' | 'DISCONNECTED' | 'DISABLED' = 'DISABLED';
   let redisLatencyMs = 0;
   if (app?.redis && typeof app.redis.ping === 'function') {
     try {
       const redisStart = Date.now();
-      await app.redis.ping();
+      const pong = await app.redis.ping();
       redisLatencyMs = Date.now() - redisStart;
+      redisStatus = pong === 'PONG' ? 'HEALTHY' : 'DISCONNECTED';
     } catch {
-      redisStatus = 'CONNECTED';
+      redisStatus = 'DISCONNECTED';
+      redisLatencyMs = 0;
     }
   }
 
@@ -183,12 +188,19 @@ export async function getPlatformOverview(
     topEvents = [];
   }
 
-  // 7-day Sales Velocity Breakdown
+  // Sales Velocity Breakdown over dynamic timeframe
+  const daysCount =
+    query?.timeRange === '30D'
+      ? 30
+      : query?.timeRange === 'ALL'
+        ? 90
+        : (query?.days ?? 7);
+
   const now = new Date();
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const cutoffDate = new Date(now.getTime() - daysCount * 24 * 60 * 60 * 1000);
 
   const velocityMap: Record<string, { revenue: number; orders: number }> = {};
-  for (let i = 6; i >= 0; i--) {
+  for (let i = daysCount - 1; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
     const dateStr = d.toISOString().slice(0, 10);
     velocityMap[dateStr] = { revenue: 0, orders: 0 };
@@ -198,7 +210,7 @@ export async function getPlatformOverview(
     const recentPaidBookings = await prisma.booking.findMany({
       where: {
         status: 'PAID',
-        createdAt: { gte: sevenDaysAgo },
+        createdAt: { gte: cutoffDate },
       },
       select: {
         createdAt: true,
@@ -682,11 +694,21 @@ export async function listAuditLogs(prisma: PrismaClient, query: GetAuditLogsQue
   const skip = (page - 1) * limit;
 
   const where: Prisma.AuditLogWhereInput = {};
-  if (query.entity) {
+  if (query.entity && query.entity !== 'ALL') {
     where.entity = query.entity;
   }
-  if (query.action) {
-    where.action = query.action;
+  if (query.action && query.action !== 'ALL') {
+    if (query.action === 'EVENT_STATUS_UPDATED') {
+      where.action = { startsWith: 'EVENT_STATUS_' };
+    } else if (query.action === 'TICKET_CHECKED_IN') {
+      where.action = { in: ['TICKET_CHECKED_IN', 'TICKET_CHECKED_IN_OVERRIDE'] };
+    } else if (query.action === 'USER_ROLE_UPDATED') {
+      where.action = { in: ['USER_ROLE_UPDATED', 'USER_ROLE_PROMOTED'] };
+    } else if (query.action === 'USER_ACCOUNT_SUSPENDED') {
+      where.action = { in: ['USER_ACCOUNT_SUSPENDED', 'USER_ACCOUNT_RESTORED'] };
+    } else {
+      where.action = query.action;
+    }
   }
 
   const [logs, total] = await Promise.all([
@@ -737,11 +759,22 @@ export async function listAdminBookings(
       },
     };
   } else if (query.search) {
-    where.OR = [
-      { user: { name: { contains: query.search, mode: 'insensitive' } } },
-      { user: { email: { contains: query.search, mode: 'insensitive' } } },
-      { event: { title: { contains: query.search, mode: 'insensitive' } } },
+    const term = query.search.trim();
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(term);
+
+    const orConditions: Prisma.BookingWhereInput[] = [
+      { paymentReference: { contains: term, mode: 'insensitive' } },
+      { user: { name: { contains: term, mode: 'insensitive' } } },
+      { user: { email: { contains: term, mode: 'insensitive' } } },
+      { event: { title: { contains: term, mode: 'insensitive' } } },
+      { tickets: { some: { qrToken: { contains: term } } } },
     ];
+
+    if (isUuid) {
+      orConditions.push({ id: term });
+    }
+
+    where.OR = orConditions;
   }
 
   const [rawBookings, total] = await Promise.all([
@@ -893,7 +926,6 @@ export async function getSystemHealthDetails(
       { name: 'Core API Fastify Engine', status: 'HEALTHY', latencyMs: 1 },
       { name: 'PostgreSQL Relational Storage', status: dbStatus, latencyMs: dbLatencyMs },
       { name: 'Redis Token & Quota Cache', status: redisStatus, latencyMs: redisLatencyMs },
-      { name: 'Ticket QR Crypto Worker', status: 'HEALTHY', latencyMs: 0 },
     ],
   };
 }
@@ -1010,9 +1042,10 @@ export async function toggleUserSuspension(
   adminUser: { id: string; email: string },
   targetUserId: string,
   suspend: boolean,
-  reason?: string
+  reason?: string,
+  app?: FastifyInstance
 ) {
-  return await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const target = await tx.user.findUnique({
       where: { id: targetUserId },
     });
@@ -1055,4 +1088,14 @@ export async function toggleUserSuspension(
       reason: reason?.trim() || (suspend ? 'Suspended by admin' : 'Reactivated by admin'),
     };
   });
+
+  if (app) {
+    if (suspend) {
+      await revokeUserSessions(app, targetUserId);
+    } else {
+      await restoreUserSessions(app, targetUserId);
+    }
+  }
+
+  return result;
 }

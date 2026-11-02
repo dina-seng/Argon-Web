@@ -5,6 +5,11 @@
 import { z } from 'zod';
 import { BookingStatus, EventStatus } from '@prisma/client';
 
+export const getPlatformOverviewQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(365).optional(),
+  timeRange: z.enum(['7D', '30D', 'ALL']).optional(),
+});
+
 export const updateUserRoleParamsSchema = z.object({
   userId: z.string().uuid(),
 });
@@ -91,3 +96,4 @@ export type GetAdminEventsQuery = z.infer<typeof getAdminEventsQuerySchema>;
 export type UpdateAdminEventStatusParams = z.infer<typeof updateAdminEventStatusParamsSchema>;
 export type UpdateAdminEventStatusBody = z.infer<typeof updateAdminEventStatusBodySchema>;
 export type ManualCheckInOverrideParams = z.infer<typeof manualCheckInOverrideParamsSchema>;
+export type GetPlatformOverviewQuery = z.infer<typeof getPlatformOverviewQuerySchema>;
