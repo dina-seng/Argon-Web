@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useTicketingStore } from '../../hooks/useTicketingStore';
 import { Header } from '../../components/layout/Header';
 import { Footer } from '../../components/layout/Footer';
 import { QrCodeImage } from '../../components/ui/QrCodeImage';
+import { api } from '../../lib/api';
 import { TicketStatus } from '@argon/shared';
 import {
   ArrowLeft,
@@ -18,19 +18,41 @@ import {
   ExternalLink
 } from 'lucide-react';
 
+interface ApiTicket {
+  id: string;
+  orderNumber: string;
+  eventId: string;
+  eventTitle: string;
+  eventVenue: string;
+  eventStartsAt: string | null;
+  tierName: string;
+  status: TicketStatus;
+  qrToken: string;
+  checkedInAt: string | null;
+  createdAt: string;
+}
+
 export default function QrPassPage() {
   const { id } = useParams<{ id?: string }>();
-  const { tickets, bookings } = useTicketingStore();
+  const [ticket, setTicket] = useState<ApiTicket | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [calendarSuccess, setCalendarSuccess] = useState(false);
 
-  // Match by ticket id, order number, or fallback to first ticket (ARG-2481)
-  const ticket =
-    tickets.find((t) => t.id === id || t.orderNumber === id) ||
-    tickets.find((t) => t.orderNumber === 'ARG-2481') ||
-    tickets[0];
-
-  const booking = bookings.find((b) => b.orderNumber === ticket?.orderNumber || b.id === ticket?.bookingId);
+  useEffect(() => {
+    api.get<ApiTicket[]>('/tickets/my')
+      .then((tickets) => {
+        const found = tickets.find((t) => t.id === id);
+        if (found) {
+          setTicket(found);
+        } else {
+          setNotFound(true);
+        }
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false));
+  }, [id]);
 
   // Status badge details
   const getStatusBadge = () => {
@@ -70,7 +92,7 @@ export default function QrPassPage() {
       'PRODID:-//Argon Ticketing//EN',
       'BEGIN:VEVENT',
       `SUMMARY:${ticket.eventTitle}`,
-      `DESCRIPTION:Argon Digital Ticket Pass - Order ${ticket.orderNumber} (${ticket.tierName}). Attendee: ${ticket.holderName}`,
+      `DESCRIPTION:Argon Digital Ticket Pass - Order ${ticket.orderNumber} (${ticket.tierName}).`,
       `LOCATION:${ticket.eventVenue}`,
       'DTSTART:20261114T110000Z',
       'DTEND:20261114T170000Z',
@@ -101,7 +123,19 @@ export default function QrPassPage() {
     setTimeout(() => setDownloadSuccess(false), 3000);
   };
 
-  if (!ticket) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#090a10] text-zinc-100 flex flex-col font-sans">
+        <Header />
+        <div className="flex-1 max-w-5xl mx-auto px-4 py-16 text-center text-zinc-400 text-sm">
+          Loading ticket…
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (notFound || !ticket) {
     return (
       <div className="min-h-screen bg-[#090a10] text-zinc-100 flex flex-col font-sans">
         <Header />
@@ -119,6 +153,7 @@ export default function QrPassPage() {
 
   const isCheckedIn = ticket.status === TicketStatus.CHECKED_IN;
   const isRevoked = ticket.status === TicketStatus.REVOKED;
+  const eventDate = ticket.eventStartsAt ? new Date(ticket.eventStartsAt).toLocaleDateString() : '';
 
   return (
     <div className="min-h-screen bg-[#090a10] text-zinc-100 flex flex-col font-sans">
@@ -141,7 +176,7 @@ export default function QrPassPage() {
           <div>
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="font-display text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-                You’re on the list.
+                You're on the list.
               </h1>
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
                 <Check className="w-3 h-3 text-emerald-400" />
@@ -169,12 +204,8 @@ export default function QrPassPage() {
           <div className="lg:col-span-7 bg-[#12131b] border border-white/[0.08] rounded-2xl overflow-hidden shadow-2xl">
             {/* Event Hero Image */}
             <div className="aspect-[16/9] w-full relative bg-zinc-900 overflow-hidden">
-              <img
-                src={ticket.eventImageUrl}
-                alt={ticket.eventTitle}
-                className="w-full h-full object-cover"
-              />
-              {/* General Admission Pill on bottom-left of image */}
+              <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-900" />
+              {/* Tier Pill */}
               <div className="absolute bottom-3 left-3 bg-black/75 backdrop-blur-md text-white text-xs px-3 py-1 rounded-md font-medium border border-white/10">
                 {ticket.tierName}
               </div>
@@ -199,7 +230,7 @@ export default function QrPassPage() {
               <div className="mt-3 space-y-1.5 text-xs text-zinc-400">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-zinc-500 shrink-0" />
-                  <span>{ticket.eventDate}</span>
+                  <span>{eventDate}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-zinc-500 shrink-0" />
@@ -219,7 +250,7 @@ export default function QrPassPage() {
                     centerText={isCheckedIn ? 'CHECKED' : 'ARGON'}
                   />
 
-                  {/* Checked-In or Revoked Overlay */}
+                  {/* Checked-In Overlay */}
                   {isCheckedIn && (
                     <div className="absolute inset-0 bg-purple-950/85 backdrop-blur-xs rounded-2xl flex flex-col items-center justify-center text-white p-4 text-center animate-in fade-in">
                       <div className="w-12 h-12 rounded-full bg-purple-500/20 border-2 border-purple-400 flex items-center justify-center mb-2">
@@ -265,14 +296,14 @@ export default function QrPassPage() {
               </div>
             </div>
 
-            {/* Ticket Card Footer with Holder & Admits */}
+            {/* Ticket Card Footer */}
             <div className="border-t border-zinc-800/80 bg-[#0e0f17] px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <span className="block text-[10px] uppercase font-bold tracking-wider text-zinc-500">
                   TICKET HOLDER
                 </span>
                 <span className="text-sm font-semibold text-white mt-0.5 block">
-                  {ticket.holderName}
+                  —
                 </span>
               </div>
 
@@ -281,7 +312,7 @@ export default function QrPassPage() {
                   ADMITS
                 </span>
                 <span className="text-sm font-semibold text-white mt-0.5 block">
-                  {ticket.admitText}
+                  1 Person
                 </span>
               </div>
             </div>
@@ -337,26 +368,18 @@ export default function QrPassPage() {
 
               <div className="space-y-2.5 text-xs text-zinc-300 border-t border-zinc-800/80 pt-3">
                 <div className="flex justify-between">
-                  <span>General admission × 1</span>
-                  <span className="font-medium">${(booking?.subtotal ?? 18).toFixed(2)}</span>
+                  <span>{ticket.tierName} × 1</span>
+                  <span className="font-medium">—</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Service fee</span>
-                  <span className="font-medium">${(booking?.serviceFee ?? 1).toFixed(2)}</span>
+                  <span className="font-medium">—</span>
                 </div>
-              </div>
-
-              {/* Total Paid Row */}
-              <div className="mt-4 pt-4 border-t border-zinc-800/80 flex items-baseline justify-between">
-                <span className="text-xs text-zinc-300">Total paid · USD</span>
-                <span className="text-2xl font-black text-orange-500 font-sans tracking-tight">
-                  ${(ticket.totalPricePaid ?? 19).toFixed(2)}
-                </span>
               </div>
 
               <div className="mt-4 pt-3 border-t border-zinc-800/80">
                 <p className="text-[11px] text-zinc-500">
-                  Sent to {ticket.attendeeEmail}
+                  Created {new Date(ticket.createdAt).toLocaleDateString()}
                 </p>
               </div>
             </div>

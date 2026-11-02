@@ -9,6 +9,7 @@
     "prebuild": "npm run build --workspace=@argon/shared && npm run prisma:generate",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
+    "start:prod": "prisma migrate deploy && node dist/server.js",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

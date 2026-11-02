@@ -14,6 +14,7 @@ export class ApiRequestError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    public readonly data?: unknown,
   ) {
     super(message);
     this.name = 'ApiRequestError';
@@ -36,7 +37,7 @@ client.interceptors.response.use(
 
     if (error.response) {
       const { status, data } = error.response;
-      return Promise.reject(new ApiRequestError(status, data?.message ?? `API error ${status}`));
+      return Promise.reject(new ApiRequestError(status, data?.message ?? `API error ${status}`, data));
     }
 
     return Promise.reject(new TypeError("Can't reach the server. Check your connection and try again."));

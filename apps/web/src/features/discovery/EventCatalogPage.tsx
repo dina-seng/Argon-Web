@@ -1,162 +1,175 @@
-import { Link } from 'react-router-dom';
-import { useTicketingStore } from '../../hooks/useTicketingStore';
-import { Header } from '../../components/layout/Header';
-import { Footer } from '../../components/layout/Footer';
-import {
-  Calendar,
-  MapPin,
-  Ticket,
-  Sparkles,
-  ArrowRight,
-  QrCode
-} from 'lucide-react';
+/**
+ * features/discovery/EventCatalogPage.tsx
+ * Customer event feed: grid of published events with filters and search.
+ * Rendered inside PublicLayout — do NOT add Header/Footer here.
+ */
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import type { PaginatedResponse, PublicEvent } from '@argon/shared';
+import { EventCategory } from '@argon/shared';
+import { api, ApiRequestError } from '@/lib/api';
+import { CATEGORY_LABELS } from '@/lib/eventLabels';
+import { EventCard } from './EventCard';
+import { SearchBar } from './SearchBar';
+import { DATE_PRESETS, isDatePreset, presetRange, type DatePreset } from './datePresets';
+
+type FeedState =
+  | { kind: 'loading' }
+  | { kind: 'error'; message: string }
+  | { kind: 'ready'; data: PaginatedResponse<PublicEvent> };
+
+const PAGE_SIZE = 12;
 
 export default function EventCatalogPage() {
-  const { events } = useTicketingStore();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const q = searchParams.get('q') ?? '';
+  const category = searchParams.get('category') ?? '';
+  const datePreset = isDatePreset(searchParams.get('date')) ? (searchParams.get('date') as DatePreset) : 'any';
+  const page = Math.max(1, Number(searchParams.get('page') ?? '1'));
+
+  const [state, setState] = useState<FeedState>({ kind: 'loading' });
+
+  useEffect(() => {
+    let cancelled = false;
+    setState({ kind: 'loading' });
+
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (category) params.set('category', category);
+    const range = presetRange(datePreset);
+    if (range.from) params.set('from', range.from);
+    if (range.to) params.set('to', range.to);
+    params.set('page', String(page));
+    params.set('pageSize', String(PAGE_SIZE));
+
+    api
+      .get<PaginatedResponse<PublicEvent>>(`/events?${params.toString()}`)
+      .then((data) => !cancelled && setState({ kind: 'ready', data }))
+      .catch((err: Error) => {
+        if (cancelled) return;
+        const msg = err instanceof ApiRequestError ? err.message : "Couldn't load events.";
+        setState({ kind: 'error', message: msg });
+      });
+
+    return () => { cancelled = true; };
+  }, [q, category, datePreset, page]);
+
+  const setParam = (key: string, value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set(key, value); else next.delete(key);
+    next.delete('page');
+    setSearchParams(next, { replace: true });
+  };
+
+  const totalPages = state.kind === 'ready' ? Math.ceil(state.data.total / PAGE_SIZE) : 1;
 
   return (
-    <div className="min-h-screen bg-[#090a10] text-zinc-100 flex flex-col font-sans">
-      <Header />
+    <div className="flex flex-col gap-8">
+      {/* Filters */}
+      <div className="flex flex-col gap-4">
+        <SearchBar value={q} onSearch={(v) => setParam('q', v)} />
 
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        {/* Hero Section */}
-        <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-[#191533] via-[#131422] to-[#0c0d16] border border-white/[0.08] p-8 sm:p-12 mb-12 shadow-2xl">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-950/60 text-primary-300 border border-primary-800/50 text-xs font-semibold mb-4">
-              <Sparkles className="w-3.5 h-3.5 text-primary-400" />
-              <span>Cambodia’s Digital Event Pass Platform</span>
-            </div>
-            <h1 className="font-display text-4xl sm:text-5xl font-black text-white tracking-tight leading-tight">
-              Quiet interface. <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-primary-400 to-fuchsia-400">
-                Loud nights.
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Category chips */}
+          <button
+            onClick={() => setParam('category', '')}
+            className={`rounded-full border px-3 py-1 text-sm font-medium transition ${
+              !category
+                ? 'border-accent bg-accent/10 text-accent'
+                : 'border-line bg-surface-card text-fg-muted hover:border-line-strong hover:text-fg'
+            }`}
+          >
+            All
+          </button>
+          {Object.values(EventCategory).map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setParam('category', category === cat ? '' : cat)}
+              className={`rounded-full border px-3 py-1 text-sm font-medium transition ${
+                category === cat
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-line bg-surface-card text-fg-muted hover:border-line-strong hover:text-fg'
+              }`}
+            >
+              {CATEGORY_LABELS[cat]}
+            </button>
+          ))}
+        </div>
+
+        {/* Date presets */}
+        <div className="flex flex-wrap items-center gap-2">
+          {DATE_PRESETS.map((preset) => (
+            <button
+              key={preset.value}
+              onClick={() => setParam('date', preset.value === 'any' ? '' : preset.value)}
+              className={`rounded-full border px-3 py-1 text-sm font-medium transition ${
+                datePreset === preset.value
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-line bg-surface-card text-fg-muted hover:border-line-strong hover:text-fg'
+              }`}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Grid */}
+      {state.kind === 'loading' && (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+            <div key={i} className="h-[340px] animate-pulse rounded-lg bg-surface-card" />
+          ))}
+        </div>
+      )}
+
+      {state.kind === 'error' && (
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-line bg-surface-card px-6 py-12 text-center">
+          <p className="text-base font-semibold text-fg">Couldn't load events</p>
+          <p className="text-sm text-fg-muted">{state.message}</p>
+        </div>
+      )}
+
+      {state.kind === 'ready' && state.data.data.length === 0 && (
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-line bg-surface-card px-6 py-12 text-center">
+          <p className="text-base font-semibold text-fg">No events match</p>
+          <p className="text-sm text-fg-muted">Try adjusting your filters or search term.</p>
+        </div>
+      )}
+
+      {state.kind === 'ready' && state.data.data.length > 0 && (
+        <>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {state.data.data.map((event) => (
+              <EventCard key={event.id} event={event} />
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2">
+              <button
+                disabled={page <= 1}
+                onClick={() => setParam('page', String(page - 1))}
+                className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-fg-muted transition hover:border-line-strong hover:text-fg disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-fg-muted">
+                Page {page} of {totalPages}
               </span>
-            </h1>
-            <p className="mt-4 text-zinc-300 text-sm sm:text-base leading-relaxed">
-              Instant KHQR bank checkout, fraud-proof digital ticket passes, and sub-second gate check-in for Phnom Penh’s most coveted rooftop gatherings, music, and creative sessions.
-            </p>
-
-            <div className="mt-8 flex flex-wrap gap-4 items-center">
-              <Link
-                to="/checkout/tier-rooftop-ga"
-                className="px-6 py-3 rounded-xl bg-[#7857ff] hover:bg-[#6b47ff] text-white font-semibold text-sm transition shadow-lg shadow-purple-950/40 flex items-center gap-2"
+              <button
+                disabled={page >= totalPages}
+                onClick={() => setParam('page', String(page + 1))}
+                className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-fg-muted transition hover:border-line-strong hover:text-fg disabled:opacity-40"
               >
-                <span>Book Rooftop Session</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-
-              <Link
-                to="/tickets"
-                className="px-6 py-3 rounded-xl bg-[#181926] hover:bg-[#222438] border border-zinc-700/80 text-white font-semibold text-sm transition flex items-center gap-2"
-              >
-                <Ticket className="w-4 h-4 text-zinc-400" />
-                <span>My Tickets</span>
-              </Link>
-
-              <Link
-                to="/organizer/scanner"
-                className="px-6 py-3 rounded-xl bg-purple-950/30 hover:bg-purple-900/40 border border-purple-800/50 text-purple-300 font-semibold text-sm transition flex items-center gap-2"
-              >
-                <QrCode className="w-4 h-4 text-purple-400" />
-                <span>Gate Scanner</span>
-              </Link>
+                Next
+              </button>
             </div>
-          </div>
-        </div>
-
-        {/* Featured Events Grid */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-2xl font-bold text-white">Upcoming Gatherings</h2>
-            <p className="text-xs text-zinc-400 mt-0.5">Explore curated local events in Phnom Penh</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {events.map((evt) => {
-            const gaTier = evt.tiers[0];
-            const isCompleted = evt.status === 'COMPLETED';
-
-            return (
-              <div
-                key={evt.id}
-                className="bg-[#12131b] border border-white/[0.08] hover:border-white/[0.18] rounded-2xl overflow-hidden shadow-xl flex flex-col transition group"
-              >
-                {/* Image */}
-                <div className="aspect-[16/9] w-full bg-zinc-900 relative overflow-hidden">
-                  <img
-                    src={evt.imageUrl}
-                    alt={evt.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute top-3 right-3">
-                    {isCompleted ? (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-zinc-900/90 text-zinc-400 border border-zinc-700">
-                        Past Event
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-950/90 text-emerald-400 border border-emerald-800">
-                        Selling Fast
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Body */}
-                <div className="p-5 flex-1 flex flex-col justify-between">
-                  <div>
-                    <h3 className="font-display text-lg font-bold text-white group-hover:text-primary-300 transition-colors">
-                      {evt.title}
-                    </h3>
-                    <p className="text-xs text-zinc-400 mt-2 line-clamp-2 leading-relaxed">
-                      {evt.description}
-                    </p>
-
-                    <div className="mt-4 space-y-1.5 text-xs text-zinc-400">
-                      <p className="flex items-center gap-2">
-                        <Calendar className="w-3.5 h-3.5 text-zinc-500" />
-                        <span>{evt.formattedDate} · {evt.formattedTime}</span>
-                      </p>
-                      <p className="flex items-center gap-2">
-                        <MapPin className="w-3.5 h-3.5 text-zinc-500" />
-                        <span>{evt.venue}</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 pt-4 border-t border-zinc-800/80 flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] text-zinc-500 uppercase font-bold block">From</span>
-                      <span className="font-bold text-white text-base">
-                        ${gaTier ? gaTier.price.toFixed(2) : '18.00'} <span className="text-xs text-zinc-400 font-normal">USD</span>
-                      </span>
-                    </div>
-
-                    {isCompleted ? (
-                      <Link
-                        to="/tickets"
-                        className="px-4 py-2 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-xl transition"
-                      >
-                        View in Passes
-                      </Link>
-                    ) : (
-                      <Link
-                        to={`/checkout/${gaTier ? gaTier.id : 'tier-rooftop-ga'}`}
-                        className="px-4 py-2 bg-[#7857ff] hover:bg-[#6b47ff] text-white text-xs font-semibold rounded-xl transition shadow-md shadow-purple-950/30 flex items-center gap-1.5"
-                      >
-                        <span>Get Tickets</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </main>
-
-      <Footer />
+          )}
+        </>
+      )}
     </div>
   );
 }

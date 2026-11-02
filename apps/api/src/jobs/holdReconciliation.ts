@@ -4,20 +4,31 @@
  * Redis TTL expiry is the fast path. This sweeper is the source of truth:
  * find PENDING bookings past expiresAt, mark EXPIRED, decrement reservedCount
  * in a transaction. Must be idempotent.
- *
- * TODO: Schedule via node-cron or a managed job queue (e.g. BullMQ).
- * TODO: Run every 60 seconds. Use SELECT FOR UPDATE SKIP LOCKED to prevent
- *       duplicate processing when multiple API instances run.
  */
 
 import type { FastifyInstance } from 'fastify';
+import { BookingStatus } from '@argon/shared';
 
-export async function runHoldReconciliation(_app: FastifyInstance): Promise<void> {
-  // TODO: implement idempotent sweeper
-  // 1. Find all PENDING bookings where expiresAt < now
-  // 2. In a prisma.$transaction for each:
-  //    - Mark booking EXPIRED
-  //    - Decrement tier.reservedCount by booking.quantity
-  //    - Delete Redis hold key if still present (belt-and-braces)
-  throw new Error('Not implemented');
+export async function runHoldReconciliation(app: FastifyInstance): Promise<void> {
+  const expiredBookings = await app.prisma.booking.findMany({
+    where: { status: BookingStatus.PENDING, expiresAt: { lt: new Date() } },
+  });
+
+  for (const booking of expiredBookings) {
+    try {
+      await app.prisma.$transaction(async (tx) => {
+        await tx.booking.updateMany({
+          where: { id: booking.id, status: BookingStatus.PENDING },
+          data: { status: BookingStatus.EXPIRED },
+        });
+        await tx.ticketTier.update({
+          where: { id: booking.tierId },
+          data: { reservedCount: { decrement: booking.quantity } },
+        });
+      });
+      await app.redis.del(`hold:${booking.id}`).catch(() => {});
+    } catch (err) {
+      app.log.warn({ err, bookingId: booking.id }, 'Hold reconciliation error for booking');
+    }
+  }
 }

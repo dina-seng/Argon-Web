@@ -4,8 +4,8 @@ services:
     env: node
     region: singapore
     plan: starter
-    buildCommand: npm install && npm run prisma:generate && npm run build
-    startCommand: npm run start
+    buildCommand: npm install && npm run build --workspace=packages/shared && npm run prisma:generate --workspace=apps/api && npm run build --workspace=apps/api
+    startCommand: npm run start:prod --workspace=apps/api
     envVars:
       - key: NODE_ENV
         value: production
@@ -26,5 +26,7 @@ services:
       - key: PAYMENT_GATEWAY_BASE_URL
         sync: false
       - key: PAYMENT_WEBHOOK_SECRET
+        sync: false
+      - key: PAYMENT_GATEWAY_SECRET
         sync: false
     healthCheckPath: /health

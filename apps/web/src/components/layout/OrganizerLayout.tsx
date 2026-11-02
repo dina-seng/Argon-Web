@@ -3,14 +3,15 @@ import { Sidebar } from './Sidebar';
 
 /**
  * OrganizerLayout – sidebar + content shell for /organizer/* routes.
- * TODO: Wrap in ProtectedRoute (ORGANIZER) once auth context exists.
  */
 export function OrganizerLayout() {
   return (
-    <div className="min-h-screen md:flex">
+    <div className="flex min-h-screen">
       <Sidebar />
-      <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-8 sm:px-8 lg:px-12 lg:py-12">
-        <Outlet />
+      <main className="flex-1 overflow-x-hidden px-4 py-8 sm:px-8 lg:px-12 lg:py-12">
+        <div className="mx-auto w-full max-w-5xl">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

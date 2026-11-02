@@ -1,20 +1,55 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useTicketingStore } from '../../hooks/useTicketingStore';
+import { useAuth } from '../../hooks/useAuth';
 import { Role } from '@argon/shared';
-import { QrCode, Ticket, Compass, RefreshCw, ChevronDown, Check } from 'lucide-react';
+import { QrCode, Ticket, Compass, ChevronDown, LogOut } from 'lucide-react';
+import { api } from '@/lib/api';
+
+interface ApiTicket {
+  id: string;
+  orderNumber: string;
+  status: string;
+}
 
 export function Header() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, tickets, activeRole, setActiveRole, resetDefaults } = useTicketingStore();
+  const { user, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [activeTicketCount, setActiveTicketCount] = useState(0);
 
   const isTicketsActive = location.pathname.startsWith('/tickets');
   const isDiscoverActive = location.pathname === '/' || location.pathname.startsWith('/events');
   const isScannerActive = location.pathname.startsWith('/organizer');
 
-  const activeTicketCount = tickets.filter((t) => t.status === 'ACTIVE').length;
+  // Fetch real ticket count for the badge
+  useEffect(() => {
+    if (!user) {
+      setActiveTicketCount(0);
+      return;
+    }
+    let cancelled = false;
+    api
+      .get<ApiTicket[]>('/tickets/my')
+      .then((tickets) => {
+        if (!cancelled) setActiveTicketCount(tickets.filter((t) => t.status === 'ACTIVE').length);
+      })
+      .catch(() => {
+        if (!cancelled) setActiveTicketCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const initials = user?.email ? user.email.slice(0, 2).toUpperCase() : '?';
+  const displayName = user?.email ? user.email.split('@')[0] : '';
+
+  const handleLogout = async () => {
+    setDropdownOpen(false);
+    await logout();
+    navigate('/login');
+  };
 
   return (
     <header className="border-b border-white/[0.07] bg-[#0c0d14]/90 backdrop-blur-md sticky top-0 z-50">
@@ -47,45 +82,49 @@ export function Header() {
               )}
             </Link>
 
-            <Link
-              to="/tickets"
-              className={`relative py-5 transition-colors ${
-                isTicketsActive
-                  ? 'text-white font-semibold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <Ticket className="w-4 h-4 opacity-70" />
-                My Tickets
-                {activeTicketCount > 0 && (
-                  <span className="px-1.5 py-0.2 bg-primary-600/30 text-primary-300 text-[11px] rounded-full font-mono border border-primary-500/30">
-                    {activeTicketCount}
-                  </span>
+            {user && (
+              <Link
+                to="/tickets"
+                className={`relative py-5 transition-colors ${
+                  isTicketsActive
+                    ? 'text-white font-semibold'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <Ticket className="w-4 h-4 opacity-70" />
+                  My Tickets
+                  {activeTicketCount > 0 && (
+                    <span className="px-1.5 py-0.2 bg-primary-600/30 text-primary-300 text-[11px] rounded-full font-mono border border-primary-500/30">
+                      {activeTicketCount}
+                    </span>
+                  )}
+                </span>
+                {isTicketsActive && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500 rounded-full" />
                 )}
-              </span>
-              {isTicketsActive && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500 rounded-full" />
-              )}
-            </Link>
+              </Link>
+            )}
 
-            <Link
-              to="/organizer/scanner"
-              className={`relative py-5 transition-colors flex items-center gap-1.5 ${
-                isScannerActive
-                  ? 'text-purple-300 font-semibold'
-                  : 'text-zinc-400 hover:text-purple-300'
-              }`}
-            >
-              <QrCode className="w-4 h-4 text-purple-400" />
-              <span>Organizer Scanner</span>
-              <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold tracking-wider bg-purple-950/70 text-purple-300 border border-purple-800/60 rounded">
-                Gate
-              </span>
-              {isScannerActive && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-500 rounded-full" />
-              )}
-            </Link>
+            {user?.role === Role.ORGANIZER && (
+              <Link
+                to="/organizer/scanner"
+                className={`relative py-5 transition-colors flex items-center gap-1.5 ${
+                  isScannerActive
+                    ? 'text-purple-300 font-semibold'
+                    : 'text-zinc-400 hover:text-purple-300'
+                }`}
+              >
+                <QrCode className="w-4 h-4 text-purple-400" />
+                <span>Organizer Scanner</span>
+                <span className="px-1.5 py-0.5 text-[10px] uppercase font-bold tracking-wider bg-purple-950/70 text-purple-300 border border-purple-800/60 rounded">
+                  Gate
+                </span>
+                {isScannerActive && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-500 rounded-full" />
+                )}
+              </Link>
+            )}
           </nav>
         </div>
 
@@ -96,95 +135,93 @@ export function Header() {
             <span>Cambodia · USD</span>
           </div>
 
-          {/* User Menu */}
-          <div className="relative">
-            <button
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-2 bg-[#1b1730] hover:bg-[#251f47] border border-purple-800/40 px-2.5 py-1.5 rounded-xl transition text-left group"
-              aria-label="User profile menu"
-            >
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-xs font-bold text-white shadow-sm">
-                {user.avatarInitials}
-              </div>
-              <span className="hidden sm:inline text-xs font-medium text-zinc-300 group-hover:text-white">
-                {user.name.split(' ')[0]}
-              </span>
-              <ChevronDown className="w-3.5 h-3.5 text-zinc-500 group-hover:text-zinc-300" />
-            </button>
+          {user ? (
+            <div className="relative">
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="flex items-center gap-2 bg-[#1b1730] hover:bg-[#251f47] border border-purple-800/40 px-2.5 py-1.5 rounded-xl transition text-left group"
+                aria-label="User profile menu"
+              >
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-xs font-bold text-white shadow-sm">
+                  {initials}
+                </div>
+                <span className="hidden sm:inline text-xs font-medium text-zinc-300 group-hover:text-white">
+                  {displayName}
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 text-zinc-500 group-hover:text-zinc-300" />
+              </button>
 
-            {dropdownOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setDropdownOpen(false)}
-                />
-                <div className="absolute right-0 mt-2 w-72 bg-[#131420] border border-zinc-800 rounded-2xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-100">
-                  <div className="px-3 py-2 border-b border-zinc-800/80 mb-2">
-                    <p className="text-sm font-semibold text-white">{user.name}</p>
-                    <p className="text-xs text-zinc-400 font-mono">{user.email}</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-purple-950/80 text-purple-300 border border-purple-800/60">
-                        {activeRole}
-                      </span>
+              {dropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setDropdownOpen(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-72 bg-[#131420] border border-zinc-800 rounded-2xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="px-3 py-2 border-b border-zinc-800/80 mb-2">
+                      <p className="text-sm font-semibold text-white">{displayName}</p>
+                      <p className="text-xs text-zinc-400 font-mono">{user.email}</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-purple-950/80 text-purple-300 border border-purple-800/60">
+                          {user.role}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <button
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          navigate('/tickets');
+                        }}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800/60 transition"
+                      >
+                        <span>My Tickets Pass</span>
+                        <Ticket className="w-3.5 h-3.5 text-zinc-400" />
+                      </button>
+
+                      {user.role === Role.ORGANIZER && (
+                        <button
+                          onClick={() => {
+                            setDropdownOpen(false);
+                            navigate('/organizer');
+                          }}
+                          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-purple-300 hover:bg-purple-950/40 transition"
+                        >
+                          <span>Organizer Dashboard</span>
+                          <QrCode className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-red-400 hover:bg-red-950/30 transition border-t border-zinc-800/60 mt-1 pt-2"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <LogOut className="w-3.5 h-3.5" />
+                          Sign out
+                        </span>
+                      </button>
                     </div>
                   </div>
-
-                  <div className="space-y-1 text-xs">
-                    <button
-                      onClick={() => {
-                        setDropdownOpen(false);
-                        navigate('/tickets');
-                      }}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800/60 transition"
-                    >
-                      <span>My Tickets Pass</span>
-                      <Ticket className="w-3.5 h-3.5 text-zinc-400" />
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setDropdownOpen(false);
-                        navigate('/checkout/tier-rooftop-ga');
-                      }}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800/60 transition"
-                    >
-                      <span>Simulate New Booking Flow</span>
-                      <span className="text-[10px] text-primary-400 font-medium">Demo</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setActiveRole(activeRole === Role.CUSTOMER ? Role.ORGANIZER : Role.CUSTOMER);
-                        setDropdownOpen(false);
-                        if (activeRole === Role.CUSTOMER) {
-                          navigate('/organizer/scanner');
-                        }
-                      }}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-purple-300 hover:bg-purple-950/40 transition"
-                    >
-                      <span>Switch to {activeRole === Role.CUSTOMER ? 'Organizer Mode' : 'Customer Mode'}</span>
-                      <Check className="w-3.5 h-3.5" />
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        resetDefaults();
-                        setDropdownOpen(false);
-                        navigate('/tickets');
-                      }}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-red-400 hover:bg-red-950/30 transition border-t border-zinc-800/60 mt-1 pt-2"
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <RefreshCw className="w-3 h-3" />
-                        Reset All Demo Data
-                      </span>
-                      <span className="text-[10px] text-zinc-500">Seed</span>
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link
+                to="/login"
+                className="px-4 py-1.5 rounded-xl text-sm font-medium text-zinc-300 hover:text-white transition"
+              >
+                Sign in
+              </Link>
+              <Link
+                to="/register"
+                className="px-4 py-1.5 rounded-xl bg-[#7857ff] hover:bg-[#6b47ff] text-white text-sm font-semibold transition shadow-lg shadow-purple-950/40"
+              >
+                Sign up
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </header>

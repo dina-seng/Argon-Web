@@ -2,7 +2,7 @@
 import type { FastifyInstance } from 'fastify';
 import { createBookingController, getBookingController } from './controller.js';
 export async function bookingsRoutes(app: FastifyInstance) {
-  // Rate-limited checkout endpoint
-  app.post('/', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } }, handler: createBookingController });
+  // Rate-limited checkout endpoint with auth
+  app.post('/', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } }, preHandler: [app.authenticate], handler: createBookingController });
   app.get('/:id', { preHandler: [app.authenticate], handler: getBookingController });
 }

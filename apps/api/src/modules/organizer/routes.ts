@@ -8,6 +8,6 @@ export async function organizerRoutes(app: FastifyInstance) {
   const organizerOnly = [requireRole(Role.ORGANIZER)];
   app.get('/events', { preHandler: organizerOnly, handler: listMyEventsController });
   app.get('/events/:eventId', { preHandler: organizerOnly, schema: { params: eventIdParamSchema }, handler: getMyEventController });
-  app.get('/events/:eventId/metrics', { preHandler: [app.authenticate], handler: getMetricsController });
-  app.post('/staff', { preHandler: [app.authenticate], handler: issueStaffController });
+  app.get('/events/:eventId/metrics', { preHandler: organizerOnly, schema: { params: eventIdParamSchema }, handler: getMetricsController });
+  app.post('/staff', { preHandler: organizerOnly, handler: issueStaffController });
 }
