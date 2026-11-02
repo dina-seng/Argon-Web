@@ -58,3 +58,7 @@ coverage/
 .worktrees/
 .worktree/
 
+
+# ArchDoc Documentation System
+doc/
+docs/archdoc
