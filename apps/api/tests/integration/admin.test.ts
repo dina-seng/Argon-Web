@@ -196,6 +196,30 @@ describe('Admin Governance Module (/api/v1/admin)', () => {
           ADMIN: 2,
         },
       });
+      expect(Array.isArray(data.dailyVelocity)).toBe(true);
+      expect(data.dailyVelocity.length).toBe(7);
+    });
+
+    it('returns DOWN for database status when database ping throws error', async () => {
+      vi.spyOn(app.prisma.booking, 'count').mockResolvedValueOnce(0 as any);
+      vi.spyOn(app.prisma.booking, 'findMany').mockResolvedValueOnce([] as any);
+      vi.spyOn(app.prisma.booking, 'aggregate').mockResolvedValueOnce({ _sum: { quantity: 0 } } as any);
+      vi.spyOn(app.prisma.event, 'count').mockResolvedValueOnce(0 as any);
+      vi.spyOn(app.prisma.ticket, 'count').mockResolvedValueOnce(0 as any);
+      vi.spyOn(app.prisma.user, 'groupBy').mockResolvedValueOnce([] as any);
+      vi.spyOn(app.prisma, '$queryRaw').mockRejectedValueOnce(new Error('Connection lost'));
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/admin/metrics/overview',
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const data = res.json();
+      expect(data.systemHealth.database.status).toBe('DOWN');
     });
   });
 
@@ -687,6 +711,130 @@ describe('Admin Governance Module (/api/v1/admin)', () => {
       expect(data.data[0].action).toBe('USER_ROLE_PROMOTED');
       expect(data.data[0].actor.email).toBe('admin@argon.kh');
       expect(data.total).toBe(1);
+    });
+  });
+
+  describe('GET /api/v1/admin/events', () => {
+    it('returns 200 OK with paginated events for ADMIN', async () => {
+      const mockEvents = [
+        {
+          id: '11111111-1111-1111-1111-111111111111',
+          title: 'BarCamp Cambodia 2026',
+          description: 'Tech conference',
+          venue: 'CADT Hall',
+          startsAt: new Date(),
+          status: 'PUBLISHED',
+          category: 'TECH',
+          coverImageUrl: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          organizer: {
+            id: '22222222-2222-2222-2222-222222222222',
+            name: 'BarCamp Team',
+            email: 'barcamp@argon.kh',
+          },
+          tiers: [
+            {
+              id: 'tier-1',
+              name: 'General',
+              price: 10,
+              capacity: 100,
+              soldCount: 20,
+              reservedCount: 0,
+            },
+          ],
+          _count: { bookings: 15 },
+        },
+      ];
+
+      vi.spyOn(app.prisma.event, 'findMany').mockResolvedValueOnce(mockEvents as any);
+      vi.spyOn(app.prisma.event, 'count').mockResolvedValueOnce(1 as any);
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/admin/events?page=1&limit=20',
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const data = res.json();
+      expect(data.data).toHaveLength(1);
+      expect(data.data[0].title).toBe('BarCamp Cambodia 2026');
+      expect(data.data[0].totalCapacity).toBe(100);
+      expect(data.data[0].totalSold).toBe(20);
+      expect(data.total).toBe(1);
+    });
+  });
+
+  describe('PATCH /api/v1/admin/events/:eventId/status', () => {
+    it('updates event status and logs to audit trail', async () => {
+      const eventId = '11111111-1111-1111-1111-111111111111';
+
+      vi.spyOn(app.prisma.event, 'findUnique').mockResolvedValueOnce({
+        id: eventId,
+        title: 'BarCamp Cambodia',
+        status: 'DRAFT',
+      } as any);
+
+      vi.spyOn(app.prisma.event, 'update').mockResolvedValueOnce({
+        id: eventId,
+        title: 'BarCamp Cambodia',
+        status: 'PUBLISHED',
+        organizer: { id: 'org-1', name: 'BarCamp', email: 'barcamp@argon.kh' },
+        tiers: [],
+      } as any);
+
+      vi.spyOn(app.prisma.auditLog, 'create').mockResolvedValueOnce({} as any);
+
+      const res = await app.inject({
+        method: 'PATCH',
+        url: `/api/v1/admin/events/${eventId}/status`,
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+        payload: {
+          status: 'PUBLISHED',
+          reason: 'Approved for public discovery',
+        },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().status).toBe('PUBLISHED');
+    });
+  });
+
+  describe('POST /api/v1/admin/tickets/:ticketId/check-in-override', () => {
+    it('overrides ticket check-in at the door for ADMIN', async () => {
+      const ticketId = '33333333-3333-3333-3333-333333333333';
+
+      vi.spyOn(app.prisma.ticket, 'findUnique').mockResolvedValueOnce({
+        id: ticketId,
+        status: 'ACTIVE',
+        bookingId: 'book-1',
+        eventId: 'event-1',
+      } as any);
+
+      vi.spyOn(app.prisma.ticket, 'update').mockResolvedValueOnce({
+        id: ticketId,
+        status: 'CHECKED_IN',
+        checkedInAt: new Date(),
+        checkedInBy: adminId,
+      } as any);
+
+      vi.spyOn(app.prisma.auditLog, 'create').mockResolvedValueOnce({} as any);
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/v1/admin/tickets/${ticketId}/check-in-override`,
+        headers: {
+          authorization: `Bearer ${adminToken}`,
+        },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().status).toBe('CHECKED_IN');
     });
   });
 });

@@ -119,7 +119,7 @@ export async function getPlatformOverview(
     await prisma.$queryRaw`SELECT 1`;
     dbLatencyMs = Date.now() - dbStart;
   } catch {
-    dbStatus = 'HEALTHY';
+    dbStatus = 'DOWN';
   }
 
   let redisStatus = 'CONNECTED';
@@ -185,15 +185,49 @@ export async function getPlatformOverview(
 
   // 7-day Sales Velocity Breakdown
   const now = new Date();
-  const dailyVelocity: Array<{ date: string; revenue: number; orders: number }> = [];
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const velocityMap: Record<string, { revenue: number; orders: number }> = {};
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    dailyVelocity.push({
-      date: d.toISOString().slice(0, 10),
-      revenue: 0,
-      orders: 0,
-    });
+    const dateStr = d.toISOString().slice(0, 10);
+    velocityMap[dateStr] = { revenue: 0, orders: 0 };
   }
+
+  try {
+    const recentPaidBookings = await prisma.booking.findMany({
+      where: {
+        status: 'PAID',
+        createdAt: { gte: sevenDaysAgo },
+      },
+      select: {
+        createdAt: true,
+        quantity: true,
+        tier: {
+          select: { price: true },
+        },
+      },
+    });
+
+    if (Array.isArray(recentPaidBookings)) {
+      for (const b of recentPaidBookings) {
+        const dateStr = new Date(b.createdAt).toISOString().slice(0, 10);
+        if (velocityMap[dateStr]) {
+          const rev = Number(b.tier?.price ?? 0) * (b.quantity ?? 1);
+          velocityMap[dateStr].revenue += rev;
+          velocityMap[dateStr].orders += 1;
+        }
+      }
+    }
+  } catch {
+    // Graceful fallback
+  }
+
+  const dailyVelocity = Object.entries(velocityMap).map(([date, stats]) => ({
+    date,
+    revenue: stats.revenue,
+    orders: stats.orders,
+  }));
 
   return {
     totalPaidBookings: totalPaidBookings ?? 0,
