@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>Argon — The Fluid Apex (Monochrome)</title>
+  <path fill="#000000" fill-rule="evenodd" d="
+    M 128 32
+    C 140 32 150 42 156 56
+    L 218 196
+    C 224 210 216 224 202 224
+    C 192 224 182 216 178 206
+    L 164 172
+    L 92 172
+    L 78 206
+    C 74 216 64 224 54 224
+    C 40 224 32 210 38 196
+    L 100 56
+    C 106 42 116 32 128 32
+    Z
+    M 128 84
+    L 106 142
+    L 150 142
+    Z
+  "/>
+</svg>

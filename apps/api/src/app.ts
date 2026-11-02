@@ -9,6 +9,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { prismaPlugin } from './plugins/prisma.js';
 import { redisPlugin } from './plugins/redis.js';
 import { jwtPlugin } from './plugins/jwt.js';
+import { authorizePlugin } from './plugins/authorize.js';
 import { rateLimitPlugin } from './plugins/rateLimit.js';
 import { corsPlugin } from './plugins/cors.js';
 import { errorHandlerPlugin } from './plugins/errorHandler.js';
@@ -22,6 +23,7 @@ import { ticketsRoutes } from './modules/tickets/routes.js';
 import { checkinRoutes } from './modules/checkin/routes.js';
 import { organizerRoutes } from './modules/organizer/routes.js';
 import { auditRoutes } from './modules/audit/routes.js';
+import { adminRoutes } from './modules/admin/routes.js';
 
 export async function buildApp() {
   const app = Fastify({
@@ -38,6 +40,7 @@ export async function buildApp() {
   await app.register(prismaPlugin);
   await app.register(redisPlugin);
   await app.register(jwtPlugin);
+  await app.register(authorizePlugin);
   await app.register(auditLogPlugin);
 
   // ── Health check ──────────────────────────────────────────────────────────
@@ -50,8 +53,11 @@ export async function buildApp() {
   await app.register(paymentsRoutes, { prefix: '/payments' });
   await app.register(ticketsRoutes, { prefix: '/tickets' });
   await app.register(checkinRoutes, { prefix: '/checkin' });
+  await app.register(checkinRoutes, { prefix: '/api/v1/checkin' });
   await app.register(organizerRoutes, { prefix: '/organizer' });
+  await app.register(organizerRoutes, { prefix: '/api/v1/organizer' });
   await app.register(auditRoutes, { prefix: '/audit' });
+  await app.register(adminRoutes, { prefix: '/api/v1/admin' });
 
   return app;
 }

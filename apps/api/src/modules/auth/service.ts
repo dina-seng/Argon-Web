@@ -80,6 +80,13 @@ export async function loginUser(_app: FastifyInstance, _input: LoginInput): Prom
     throw new Error('Invalid email or password');
   }
 
+  if (user.isSuspended) {
+    const error = new Error('Account has been suspended. Please contact support.');
+    (error as any).statusCode = 403;
+    error.name = 'Forbidden';
+    throw error;
+  }
+
   return createSession(_app, user);
 }
 
@@ -104,6 +111,13 @@ export async function refreshUserSession(app: FastifyInstance, refreshToken: str
 
   const user = await app.prisma.user.findUnique({ where: { id: session.userId } });
   if (!user) throw new Error('Invalid or expired refresh token');
+
+  if (user.isSuspended) {
+    const error = new Error('Account has been suspended. Please contact support.');
+    (error as any).statusCode = 403;
+    error.name = 'Forbidden';
+    throw error;
+  }
 
   return createSession(app, user, session.expiresAt);
 }
@@ -134,4 +148,25 @@ export async function logoutUser(
 
 export async function isAccessTokenRevoked(app: FastifyInstance, accessToken: string): Promise<boolean> {
   return (await app.redis.exists(accessTokenKey(accessToken))) === 1;
+}
+
+const userRevocationKey = (userId: string) => `revoked:user:${userId}`;
+
+export async function revokeUserSessions(app: FastifyInstance, userId: string): Promise<void> {
+  if (app.redis && typeof app.redis.set === 'function') {
+    await app.redis.set(userRevocationKey(userId), '1', 'EX', 86400);
+  }
+}
+
+export async function restoreUserSessions(app: FastifyInstance, userId: string): Promise<void> {
+  if (app.redis && typeof app.redis.del === 'function') {
+    await app.redis.del(userRevocationKey(userId));
+  }
+}
+
+export async function isUserRevoked(app: FastifyInstance, userId: string): Promise<boolean> {
+  if (app.redis && typeof app.redis.exists === 'function') {
+    return (await app.redis.exists(userRevocationKey(userId))) === 1;
+  }
+  return false;
 }

@@ -8,20 +8,22 @@ datasource db {
 }
 
 model User {
-  id        String     @id @default(uuid())
-  email     String     @unique
-  password  String
-  name      String
-  role      Role       @default(CUSTOMER)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  auditLogs AuditLog[]
-  bookings  Booking[]
-  events    Event[]    @relation("OrganizerEvents")
-  checkins  Ticket[]   @relation("CheckedInBy")
+  id          String     @id @default(uuid())
+  email       String     @unique
+  password    String
+  name        String
+  role        Role       @default(CUSTOMER)
+  isSuspended Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  auditLogs   AuditLog[]
+  bookings    Booking[]
+  events      Event[]    @relation("OrganizerEvents")
+  checkins    Ticket[]   @relation("CheckedInBy")
 
   @@index([email])
   @@index([role])
+  @@index([isSuspended])
 }
 
 model Event {

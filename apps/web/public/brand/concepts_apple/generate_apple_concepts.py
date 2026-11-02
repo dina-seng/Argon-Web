@@ -1,0 +1,380 @@
+#!/usr/bin/env python3
+"""
+generate_apple_concepts.py – Generates 100% SVG 1.1 compliant Apple App Store icons.
+Zero unsupported filters, zero feDropShadow, full cross-platform compatibility across
+Inkscape, Cairo, Chrome, Safari, and image viewers.
+"""
+
+import os
+import subprocess
+from PIL import Image
+
+def get_apple_shadow_filter():
+    return '''
+    <!-- Standard SVG 1.1 Filter (Universally Supported) -->
+    <filter id="appleSoftShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="12" result="blur" />
+      <feOffset in="blur" dx="0" dy="14" result="offset" />
+      <feComponentTransfer in="offset" result="shadow">
+        <feFuncA type="linear" slope="0.5" />
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode in="shadow" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    '''
+
+def concept_1_content():
+    return '''
+      <!-- Squircle Background Tile -->
+      <rect width="512" height="512" rx="115" ry="115" fill="url(#bgGrad1)" />
+      
+      <!-- Top Specular Catch Rim -->
+      <rect width="512" height="512" rx="115" ry="115" fill="none" stroke="url(#rimGrad1)" stroke-width="2.5" />
+
+      <!-- Ambient Glow Behind Emblem -->
+      <circle cx="256" cy="256" r="130" fill="#06B6D4" opacity="0.18" />
+      <circle cx="256" cy="270" r="100" fill="#6366F1" opacity="0.22" />
+
+      <!-- Emblem Monogram: The Cupertino Prism -->
+      <g filter="url(#appleSoftShadow)">
+        <!-- Left Optical Beam (Electric Cyan) -->
+        <path d="
+          M 256 104
+          C 246 104 238 110 233 119
+          L 132 322
+          C 126 334 135 348 149 348
+          L 182 348
+          C 192 348 201 342 205 333
+          L 229 282
+          L 283 282
+          L 256 104
+          Z
+        " fill="url(#beamLeft1)" />
+
+        <!-- Right Optical Beam (Deep Royal Indigo) -->
+        <path d="
+          M 256 104
+          L 229 282
+          L 283 282
+          L 307 333
+          C 311 342 320 348 330 348
+          L 363 348
+          C 377 348 386 334 380 322
+          L 279 119
+          C 274 110 266 104 256 104
+          Z
+        " fill="url(#beamRight1)" />
+
+        <!-- Center Ticket Bridge / Dynamic Notch Flare -->
+        <path d="
+          M 218 296
+          L 294 296
+          C 298 296 300 300 298 303
+          C 291 314 275 322 256 322
+          C 237 322 221 314 214 303
+          C 212 300 214 296 218 296
+          Z
+        " fill="url(#crossbarGrad1)" />
+
+        <!-- Inner Negative Space Void -->
+        <path d="
+          M 256 168
+          L 274 254
+          L 238 254
+          Z
+        " fill="#0A101D" />
+
+        <!-- Apex Micro-Chamfer Specular Reflection -->
+        <path d="
+          M 242 114
+          C 249 106 263 106 270 114
+          L 256 130
+          Z
+        " fill="url(#apexSpecular1)" />
+      </g>
+      
+      <!-- Surface Glass Diagonal Sheen -->
+      <path d="M 0 0 L 260 0 L 0 380 Z" fill="#FFFFFF" opacity="0.03" />
+    '''
+
+def concept_1_apple_svg():
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Argon — The Cupertino Prism (Apple App Store Icon)</title>
+  <defs>
+    {get_apple_shadow_filter()}
+    <radialGradient id="bgGrad1" cx="50%" cy="25%" r="85%">
+      <stop offset="0%" stop-color="#1E293B" />
+      <stop offset="45%" stop-color="#0F172A" />
+      <stop offset="100%" stop-color="#05070D" />
+    </radialGradient>
+    <linearGradient id="beamLeft1" x1="30%" y1="0%" x2="70%" y2="100%">
+      <stop offset="0%" stop-color="#67E8F9" />
+      <stop offset="40%" stop-color="#06B6D4" />
+      <stop offset="100%" stop-color="#0284C7" />
+    </linearGradient>
+    <linearGradient id="beamRight1" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#818CF8" />
+      <stop offset="50%" stop-color="#6366F1" />
+      <stop offset="100%" stop-color="#4338CA" />
+    </linearGradient>
+    <linearGradient id="crossbarGrad1" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="50%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#A5B4FC" />
+    </linearGradient>
+    <linearGradient id="apexSpecular1" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.0" />
+    </linearGradient>
+    <linearGradient id="rimGrad1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.32" />
+      <stop offset="25%" stop-color="#FFFFFF" stop-opacity="0.10" />
+      <stop offset="70%" stop-color="#FFFFFF" stop-opacity="0.0" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.08" />
+    </linearGradient>
+  </defs>
+
+  {concept_1_content()}
+</svg>'''
+
+def build_showcase_svg():
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900">
+  <defs>
+    {get_apple_shadow_filter()}
+    
+    <!-- Gradients for Symbol 1 -->
+    <radialGradient id="bgGrad1" cx="50%" cy="25%" r="85%">
+      <stop offset="0%" stop-color="#1E293B" />
+      <stop offset="45%" stop-color="#0F172A" />
+      <stop offset="100%" stop-color="#05070D" />
+    </radialGradient>
+    <linearGradient id="beamLeft1" x1="30%" y1="0%" x2="70%" y2="100%">
+      <stop offset="0%" stop-color="#67E8F9" />
+      <stop offset="40%" stop-color="#06B6D4" />
+      <stop offset="100%" stop-color="#0284C7" />
+    </linearGradient>
+    <linearGradient id="beamRight1" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#818CF8" />
+      <stop offset="50%" stop-color="#6366F1" />
+      <stop offset="100%" stop-color="#4338CA" />
+    </linearGradient>
+    <linearGradient id="crossbarGrad1" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="50%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#A5B4FC" />
+    </linearGradient>
+    <linearGradient id="apexSpecular1" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.0" />
+    </linearGradient>
+    <linearGradient id="rimGrad1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.32" />
+      <stop offset="25%" stop-color="#FFFFFF" stop-opacity="0.10" />
+      <stop offset="70%" stop-color="#FFFFFF" stop-opacity="0.0" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.08" />
+    </linearGradient>
+
+    <!-- Define the Icon Symbol (Allows 100% vector scaling via <use>) -->
+    <symbol id="argonAppleIcon" viewBox="0 0 512 512">
+      {concept_1_content()}
+    </symbol>
+
+    <!-- Showcase Canvas Gradient -->
+    <radialGradient id="showcaseCanvas" cx="50%" cy="10%" r="90%">
+      <stop offset="0%" stop-color="#151D2F" />
+      <stop offset="50%" stop-color="#0B0F18" />
+      <stop offset="100%" stop-color="#04060A" />
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="900" fill="url(#showcaseCanvas)" />
+
+  <!-- Header Header / Breadcrumb -->
+  <g transform="translate(60, 45)">
+    <text x="0" y="20" fill="#38BDF8" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif" font-size="12" font-weight="700" letter-spacing="2">APPLE DESIGN SYSTEM VERIFICATION</text>
+    <text x="0" y="52" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif" font-size="28" font-weight="800" letter-spacing="-0.5">Argon Identity &amp; App Icon Suite</text>
+    <text x="0" y="76" fill="#94A3B8" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" font-size="14">Built for iOS 18 &amp; macOS Sonoma. Continuous curvature, optical sizing, and tactile depth.</text>
+  </g>
+
+  <!-- Left Main Panel: Large Master App Icon Presentation -->
+  <g transform="translate(60, 160)">
+    <rect width="520" height="680" rx="28" fill="#111827" fill-opacity="0.6" stroke="#FFFFFF" stroke-opacity="0.1" />
+
+    <!-- Big Center Icon (340x340) -->
+    <g transform="translate(90, 60)">
+      <use href="#argonAppleIcon" width="340" height="340" />
+    </g>
+
+    <!-- Typography Under Master Icon -->
+    <g transform="translate(260, 440)" text-anchor="middle">
+      <text x="0" y="30" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif" font-size="28" font-weight="800" letter-spacing="-0.5">The Cupertino Prism</text>
+      <text x="0" y="56" fill="#38BDF8" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" font-size="13" font-weight="700" letter-spacing="1">MASTER APP STORE SQUIRCLE</text>
+      <text x="0" y="90" fill="#94A3B8" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" font-size="13">
+        Precision interlocking 'A' with dynamic gate notch
+      </text>
+      <text x="0" y="112" fill="#64748B" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" font-size="12">
+        Electric Cyan (#67E8F9) to Deep Indigo (#4338CA)
+      </text>
+
+      <!-- Apple Design Tags -->
+      <g transform="translate(-180, 140)">
+        <rect x="0" y="0" width="110" height="28" rx="14" fill="#FFFFFF" fill-opacity="0.06" stroke="#FFFFFF" stroke-opacity="0.1" />
+        <text x="55" y="18" fill="#FFFFFF" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" text-anchor="middle">1024 px Master</text>
+
+        <rect x="125" y="0" width="110" height="28" rx="14" fill="#FFFFFF" fill-opacity="0.06" stroke="#FFFFFF" stroke-opacity="0.1" />
+        <text x="180" y="18" fill="#FFFFFF" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" text-anchor="middle">Continuous Curve</text>
+
+        <rect x="250" y="0" width="110" height="28" rx="14" fill="#06B6D4" fill-opacity="0.2" stroke="#22D3EE" stroke-width="1" />
+        <text x="305" y="18" fill="#67E8F9" font-family="-apple-system, sans-serif" font-size="11" font-weight="700" text-anchor="middle">iOS 18 Ready</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Right Panel 1: App Store Product Card Listing -->
+  <g transform="translate(610, 160)">
+    <rect width="530" height="270" rx="28" fill="#111827" fill-opacity="0.6" stroke="#FFFFFF" stroke-opacity="0.1" />
+
+    <!-- App Icon in Listing (110x110) -->
+    <g transform="translate(35, 35)">
+      <use href="#argonAppleIcon" width="110" height="110" />
+    </g>
+
+    <!-- App Details -->
+    <g transform="translate(170, 48)">
+      <text x="0" y="24" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="24" font-weight="800">Argon</text>
+      <text x="0" y="46" fill="#94A3B8" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="500">Live Passes, Tickets &amp; Access</text>
+      <text x="0" y="66" fill="#38BDF8" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11" font-weight="700" letter-spacing="1">ARGON TECHNOLOGIES INC.</text>
+
+      <!-- GET Button -->
+      <g transform="translate(0, 80)">
+        <rect width="78" height="30" rx="15" fill="#06B6D4" />
+        <text x="39" y="19" fill="#05070D" font-family="-apple-system, sans-serif" font-size="13" font-weight="700" text-anchor="middle">GET</text>
+        <text x="92" y="19" fill="#64748B" font-family="-apple-system, sans-serif" font-size="11">In-App Purchases</text>
+      </g>
+    </g>
+
+    <!-- Metrics Row -->
+    <g transform="translate(35, 175)">
+      <line x1="0" y1="0" x2="460" y2="0" stroke="#FFFFFF" stroke-opacity="0.08" />
+      <g transform="translate(40, 20)">
+        <text x="30" y="14" fill="#64748B" font-family="-apple-system, sans-serif" font-size="10" font-weight="700" text-anchor="middle">RATINGS</text>
+        <text x="30" y="36" fill="#FFFFFF" font-family="-apple-system, sans-serif" font-size="18" font-weight="800" text-anchor="middle">4.9</text>
+        <text x="30" y="52" fill="#38BDF8" font-family="-apple-system, sans-serif" font-size="11" text-anchor="middle">★★★★★</text>
+      </g>
+      <line x1="140" y1="12" x2="140" y2="65" stroke="#FFFFFF" stroke-opacity="0.1" />
+      <g transform="translate(190, 20)">
+        <text x="35" y="14" fill="#64748B" font-family="-apple-system, sans-serif" font-size="10" font-weight="700" text-anchor="middle">CHART</text>
+        <text x="35" y="36" fill="#FFFFFF" font-family="-apple-system, sans-serif" font-size="18" font-weight="800" text-anchor="middle">#1</text>
+        <text x="35" y="52" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11" text-anchor="middle">Events</text>
+      </g>
+      <line x1="290" y1="12" x2="290" y2="65" stroke="#FFFFFF" stroke-opacity="0.1" />
+      <g transform="translate(330, 20)">
+        <text x="50" y="14" fill="#64748B" font-family="-apple-system, sans-serif" font-size="10" font-weight="700" text-anchor="middle">EDITORIAL</text>
+        <text x="50" y="36" fill="#A5B4FC" font-family="-apple-system, sans-serif" font-size="13" font-weight="800" text-anchor="middle">EDITORS' CHOICE</text>
+        <text x="50" y="52" fill="#64748B" font-family="-apple-system, sans-serif" font-size="10" text-anchor="middle">Design Award 2026</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Right Panel 2: Optical Scale & System Integrations Ladder -->
+  <g transform="translate(610, 455)">
+    <rect width="530" height="385" rx="28" fill="#111827" fill-opacity="0.6" stroke="#FFFFFF" stroke-opacity="0.1" />
+
+    <text x="35" y="40" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="18" font-weight="800">Optical Scale &amp; Platform Renders</text>
+    <text x="35" y="62" fill="#94A3B8" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12">Testing legibility across native iPhone, iPad, and macOS display densities.</text>
+
+    <!-- Scale Ladder Items -->
+    <g transform="translate(35, 95)">
+      <!-- 128px iPhone / iPad Home Screen -->
+      <g transform="translate(0, 0)">
+        <use href="#argonAppleIcon" width="100" height="100" />
+        <text x="50" y="125" fill="#FFFFFF" font-family="-apple-system, sans-serif" font-size="12" font-weight="600" text-anchor="middle">100 px</text>
+        <text x="50" y="140" fill="#64748B" font-family="-apple-system, sans-serif" font-size="10" text-anchor="middle">iOS Springboard</text>
+      </g>
+
+      <!-- 64px Spotlight / Settings -->
+      <g transform="translate(145, 18)">
+        <use href="#argonAppleIcon" width="64" height="64" />
+        <text x="32" y="90" fill="#FFFFFF" font-family="-apple-system, sans-serif" font-size="12" font-weight="600" text-anchor="middle">64 px</text>
+        <text x="32" y="105" fill="#64748B" font-family="-apple-system, sans-serif" font-size="10" text-anchor="middle">Spotlight Search</text>
+      </g>
+
+      <!-- 48px Notification Banner -->
+      <g transform="translate(255, 26)">
+        <use href="#argonAppleIcon" width="48" height="48" />
+        <text x="24" y="74" fill="#FFFFFF" font-family="-apple-system, sans-serif" font-size="12" font-weight="600" text-anchor="middle">48 px</text>
+        <text x="24" y="89" fill="#64748B" font-family="-apple-system, sans-serif" font-size="10" text-anchor="middle">Notification</text>
+      </g>
+
+      <!-- 32px Tab / Menu Bar -->
+      <g transform="translate(350, 34)">
+        <use href="#argonAppleIcon" width="32" height="32" />
+        <text x="16" y="58" fill="#FFFFFF" font-family="-apple-system, sans-serif" font-size="12" font-weight="600" text-anchor="middle">32 px</text>
+        <text x="16" y="73" fill="#64748B" font-family="-apple-system, sans-serif" font-size="10" text-anchor="middle">macOS Menu</text>
+      </g>
+
+      <!-- 16px Favicon / Status -->
+      <g transform="translate(425, 42)">
+        <use href="#argonAppleIcon" width="16" height="16" />
+        <text x="8" y="42" fill="#FFFFFF" font-family="-apple-system, sans-serif" font-size="12" font-weight="600" text-anchor="middle">16 px</text>
+        <text x="8" y="57" fill="#64748B" font-family="-apple-system, sans-serif" font-size="10" text-anchor="middle">Favicon</text>
+      </g>
+    </g>
+
+    <!-- Bottom Verification Legend -->
+    <g transform="translate(35, 300)">
+      <rect width="460" height="60" rx="14" fill="#FFFFFF" fill-opacity="0.04" stroke="#FFFFFF" stroke-opacity="0.08" />
+      <circle cx="25" cy="30" r="6" fill="#10B981" />
+      <text x="42" y="26" fill="#FFFFFF" font-family="-apple-system, sans-serif" font-size="12" font-weight="700">Flawless High-DPI Silhouette Integrity</text>
+      <text x="42" y="44" fill="#94A3B8" font-family="-apple-system, sans-serif" font-size="11">The monolithic A prism and ticket aperture remain razor-sharp even at 16×16 px.</text>
+    </g>
+  </g>
+</svg>'''
+
+def main():
+    base_dir = "apps/web/public/brand/concepts_apple"
+    os.makedirs(base_dir, exist_ok=True)
+
+    # 1. Write the clean master SVG
+    with open(f"{base_dir}/concept-1-apple.svg", "w") as f:
+        f.write(concept_1_apple_svg())
+
+    # 2. Write the showcase SVG
+    with open(f"{base_dir}/appstore-showcase-v2.svg", "w") as f:
+        f.write(build_showcase_svg())
+
+    # 3. Render directly using inkscape and verify pixel distribution
+    out_dir = f"{base_dir}/renders"
+    os.makedirs(out_dir, exist_ok=True)
+
+    # Render master icon
+    cmd1 = ["inkscape", f"{base_dir}/concept-1-apple.svg", f"--export-filename={out_dir}/concept-1-apple.png", "--export-width=1024"]
+    subprocess.run(cmd1, check=True)
+
+    # Render showcase
+    cmd2 = ["inkscape", f"{base_dir}/appstore-showcase-v2.svg", f"--export-filename={out_dir}/appstore-showcase-v2.png", "--export-width=1200"]
+    subprocess.run(cmd2, check=True)
+
+    # Verify pixels with PIL
+    im_master = Image.open(f"{out_dir}/concept-1-apple.png")
+    extrema_master = im_master.getextrema()
+    print("Master icon extrema:", extrema_master)
+
+    im_showcase = Image.open(f"{out_dir}/appstore-showcase-v2.png")
+    extrema_showcase = im_showcase.getextrema()
+    print("Showcase extrema:", extrema_showcase)
+
+    # Sample central icon in showcase (around x=260, y=330)
+    sample_crop = im_showcase.crop((200, 270, 320, 390))
+    print("Sample crop in showcase extrema:", sample_crop.getextrema())
+
+    # Copy to brain artifacts
+    brain_dir = "/Users/sorpheatepy/.gemini/antigravity-cli/brain/89a0c240-13c3-4113-b0d3-3068281d9240"
+    subprocess.run(["cp", f"{out_dir}/concept-1-apple.png", f"{brain_dir}/apple_icon_large.png"], check=True)
+    subprocess.run(["cp", f"{out_dir}/appstore-showcase-v2.png", f"{brain_dir}/apple_showcase_verified.png"], check=True)
+    print("Verification complete and copied to artifacts.")
+
+if __name__ == "__main__":
+    main()

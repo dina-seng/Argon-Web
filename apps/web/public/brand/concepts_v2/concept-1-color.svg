@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>Argon — The Plasma Portal</title>
+  <defs>
+    <linearGradient id="argonPlasma1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22D3EE" />
+      <stop offset="50%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#6366F1" />
+    </linearGradient>
+    <linearGradient id="argonPlasmaBack1" x1="100%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#1E1B4B" />
+      <stop offset="100%" stop-color="#4F46E5" />
+    </linearGradient>
+  </defs>
+  <!-- Background Loop Underlay -->
+  <path fill="url(#argonPlasmaBack1)" d="
+    M 78 174
+    C 98 140 120 110 128 76
+    C 134 50 148 40 162 48
+    C 178 58 178 84 164 116
+    C 152 144 130 178 114 196
+    C 98 214 74 216 64 202
+    C 54 188 62 168 78 174
+    Z
+  "/>
+  <!-- Foreground Primary Ribbon Loop -->
+  <path fill="url(#argonPlasma1)" fill-rule="evenodd" d="
+    M 128 32
+    C 106 32 88 56 82 86
+    C 74 126 94 168 128 196
+    C 156 220 186 216 198 194
+    C 210 172 202 144 178 126
+    C 154 108 140 98 142 82
+    C 144 68 154 60 164 66
+    C 178 74 182 96 172 120
+    C 168 130 172 142 184 146
+    C 196 150 206 142 210 128
+    C 224 88 214 48 184 34
+    C 164 24 144 26 128 32
+    Z
+    M 112 124
+    C 114 100 122 82 128 66
+    C 126 92 118 114 112 124
+    Z
+  "/>
+</svg>

@@ -3,6 +3,7 @@
  * MVP session storage: the JWT survives reloads in this tab and is cleared when the tab closes.
  * Never persist the JWT in localStorage.
  */
+import type { JwtPayload, Role } from '@argon/shared';
 
 const TOKEN_KEY = 'argon_token';
 const REFRESH_TOKEN_KEY = 'argon_refresh_token';
@@ -36,6 +37,41 @@ export function getTokenExpiry(token: string): number | null {
   } catch {
     return null;
   }
+}
+
+export function parseJwt(token: string): JwtPayload | null {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+
+  const payloadPart = parts[1];
+  if (!payloadPart) return null;
+
+  try {
+    const base64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+    const payload = JSON.parse(atob(padded)) as Record<string, unknown>;
+    if (!payload || typeof payload !== 'object') return null;
+    if (typeof payload.sub !== 'string' || typeof payload.email !== 'string' || !payload.role) {
+      return null;
+    }
+
+    return {
+      sub: payload.sub,
+      role: payload.role as Role,
+      email: payload.email,
+      iat: typeof payload.iat === 'number' ? payload.iat : undefined,
+      exp: typeof payload.exp === 'number' ? payload.exp : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function isTokenExpired(token: string): boolean {
+  const expiresAt = getTokenExpiry(token);
+  if (expiresAt === null) return true;
+  return expiresAt <= Date.now();
 }
 
 export function setToken(token: string): void {

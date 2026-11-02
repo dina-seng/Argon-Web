@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1350" width="900" height="1350" style="background:#EAEFF5;">
+  <defs>
+    <filter id="softCardShadow" x="-20%" y="-15%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="18" result="blur"/>
+      <feOffset dx="0" dy="20" result="offset"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.22"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="pebbleShadow" x="-20%" y="-15%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14" result="blur"/>
+      <feOffset dx="0" dy="16" result="offset"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.22"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Soft Studio Diffused Shadow for the Squircle Card -->
+    
+    
+  </defs>
+
+  <rect width="900" height="1350" fill="#EAEFF5" />
+
+  <!-- Top Brand Lockup (Ref 1 Style: Mark + 'argon') -->
+  <g transform="translate(450, 190)" text-anchor="middle">
+    <!-- Mini Mark -->
+    <g transform="translate(-130, -32) scale(0.12)">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Argon — The Wave Pebble</title>
+  <!-- Asymmetric organic pebble 'a' inspired by Simon Felsenstein -->
+  <path fill="#111827" fill-rule="evenodd" d="
+    M 228 108
+    C 314 102 388 152 408 234
+    C 428 316 394 384 330 410
+    C 268 435 198 426 150 380
+    C 104 336 90 268 116 210
+    C 138 158 174 114 228 108
+    Z
+    M 216 200
+    C 168 204 140 242 146 288
+    C 152 328 188 352 228 348
+    C 268 344 294 310 288 268
+    C 282 226 256 196 216 200
+    Z
+  "/>
+</svg>
+    </g>
+    <!-- Wordmark: 'argon' in clean circular geometric sans -->
+    <text x="10" y="8" fill="#111827" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif" font-size="52" font-weight="600" letter-spacing="-1.5">argon</text>
+  </g>
+
+  <!-- Big Floating Squircle Card (Ref 1 Exact Proportions) -->
+  <g transform="translate(190, 370)" filter="url(#softCardShadow)">
+    <!-- Squircle Card: 520x520, rx=130 -->
+    <rect width="520" height="520" rx="130" ry="130" fill="#F8FAFC" />
+    <rect width="520" height="520" rx="130" ry="130" fill="none" stroke="#FFFFFF" stroke-width="2.5" />
+
+    <!-- Centered Hero Mark (340x340) -->
+    <g transform="translate(90, 90) scale(0.664)">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Argon — The Wave Pebble</title>
+  <!-- Asymmetric organic pebble 'a' inspired by Simon Felsenstein -->
+  <path fill="#111827" fill-rule="evenodd" d="
+    M 228 108
+    C 314 102 388 152 408 234
+    C 428 316 394 384 330 410
+    C 268 435 198 426 150 380
+    C 104 336 90 268 116 210
+    C 138 158 174 114 228 108
+    Z
+    M 216 200
+    C 168 204 140 242 146 288
+    C 152 328 188 352 228 348
+    C 268 344 294 310 288 268
+    C 282 226 256 196 216 200
+    Z
+  "/>
+</svg>
+    </g>
+
+    <!-- Subtle (C) / Identity Mark Top Right of Card -->
+    <g transform="translate(470, -20)">
+      <circle cx="15" cy="15" r="14" fill="none" stroke="#111827" stroke-width="2" />
+      <text x="15" y="20" fill="#111827" font-family="sans-serif" font-size="14" font-weight="700" text-anchor="middle">C</text>
+    </g>
+  </g>
+
+  <!-- Editorial Bottom Info (Ref 1 Exact Layout) -->
+  <g transform="translate(450, 1100)" text-anchor="middle">
+    <text x="0" y="0" fill="#111827" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="14" font-weight="700" letter-spacing="3">✦ AVAILABLE FOR PRODUCTION</text>
+    <text x="0" y="32" fill="#64748B" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="15" font-weight="500">argon.events / visual identity system</text>
+  </g>
+</svg>

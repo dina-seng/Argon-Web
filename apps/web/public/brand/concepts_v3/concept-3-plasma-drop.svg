@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Argon — The Plasma Teardrop</title>
+  <defs>
+    <linearGradient id="dropGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5" />
+      <stop offset="100%" stop-color="#312E81" />
+    </linearGradient>
+  </defs>
+  <!-- Fluid loop forming lowercase 'a' with ticket entrance notch -->
+  <path fill="url(#dropGrad3)" fill-rule="evenodd" d="
+    M 270 100
+    C 350 100 410 160 410 240
+    C 410 330 350 410 260 410
+    C 180 410 110 350 110 270
+    C 110 180 180 100 270 100
+    Z
+    M 240 200
+    C 190 200 160 230 160 270
+    C 160 310 190 340 240 340
+    C 290 340 330 310 330 260
+    C 330 210 290 200 240 200
+    Z
+    M 330 260
+    L 370 380
+    C 374 392 364 404 352 404
+    L 326 404
+    L 300 330
+    Z
+  "/>
+</svg>
