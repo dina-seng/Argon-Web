@@ -80,6 +80,13 @@ export async function loginUser(_app: FastifyInstance, _input: LoginInput): Prom
     throw new Error('Invalid email or password');
   }
 
+  if (user.isSuspended) {
+    const error = new Error('Account has been suspended. Please contact support.');
+    (error as any).statusCode = 403;
+    error.name = 'Forbidden';
+    throw error;
+  }
+
   return createSession(_app, user);
 }
 
@@ -104,6 +111,13 @@ export async function refreshUserSession(app: FastifyInstance, refreshToken: str
 
   const user = await app.prisma.user.findUnique({ where: { id: session.userId } });
   if (!user) throw new Error('Invalid or expired refresh token');
+
+  if (user.isSuspended) {
+    const error = new Error('Account has been suspended. Please contact support.');
+    (error as any).statusCode = 403;
+    error.name = 'Forbidden';
+    throw error;
+  }
 
   return createSession(app, user, session.expiresAt);
 }
