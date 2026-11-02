@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation, Link, Outlet } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { Role } from '@argon/shared';
+import type { Role } from '@argon/shared';
 import { Button } from '../../components/ui/Button';
 
 export interface ProtectedRouteProps {

@@ -11,11 +11,11 @@
  */
 
 import crypto from 'node:crypto';
-import {
+import { TicketStatus } from '@prisma/client';
+import type {
   PrismaClient,
   Role,
   EventStatus,
-  TicketStatus,
   Prisma,
 } from '@prisma/client';
 import type { FastifyInstance } from 'fastify';
