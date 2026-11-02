@@ -18,3 +18,7 @@
 | Batch 4 | Task 6 | Administrative Shell, Header & Dynamic Role Navigation | Complete | `839917e` |
 | Batch 4 | Task 7 | Organizer Dashboard, Tier Controls & Attendee Views | Complete | `5af62ae` |
 | Batch 4 | Task 8 | Platform Super-Admin Views & Route Wiring | Complete | `f492b4a` |
+| Batch 5 | Task 9 | User Suspension Schema & Auth Pipeline Enforcement | Complete | `2d8c6a1` |
+| Batch 5 | Task 10 | Real 7-Day Sales Velocity Aggregation & Telemetry Fallback | Complete | `8b83fdc` |
+| Batch 5 | Task 11 | Server Pagination Controls for Transaction Overrides View | Complete | `a677516` |
+| Batch 5 | Task 12 | Authoritative Zero-Mock PostgreSQL Integration Test Suite | Complete | `bd0d7fa` |
