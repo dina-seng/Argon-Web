@@ -339,9 +339,11 @@ describe('Admin Governance Module (/api/v1/admin)', () => {
           where: expect.objectContaining({
             status: 'PENDING',
             OR: [
+              { paymentReference: { contains: 'Dara', mode: 'insensitive' } },
               { user: { name: { contains: 'Dara', mode: 'insensitive' } } },
               { user: { email: { contains: 'Dara', mode: 'insensitive' } } },
               { event: { title: { contains: 'Dara', mode: 'insensitive' } } },
+              { tickets: { some: { qrToken: { contains: 'Dara' } } } },
             ],
           }),
           skip: 10,
@@ -353,9 +355,11 @@ describe('Admin Governance Module (/api/v1/admin)', () => {
           where: expect.objectContaining({
             status: 'PENDING',
             OR: [
+              { paymentReference: { contains: 'Dara', mode: 'insensitive' } },
               { user: { name: { contains: 'Dara', mode: 'insensitive' } } },
               { user: { email: { contains: 'Dara', mode: 'insensitive' } } },
               { event: { title: { contains: 'Dara', mode: 'insensitive' } } },
+              { tickets: { some: { qrToken: { contains: 'Dara' } } } },
             ],
           }),
         })
