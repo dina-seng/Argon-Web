@@ -105,7 +105,7 @@ export function SystemHealthView() {
             </span>
           </div>
           <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Live status for database, cache, runtime memory, and system services.
+            Live status for database, cache, and system services.
           </p>
         </div>
 

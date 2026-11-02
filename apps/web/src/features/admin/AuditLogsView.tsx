@@ -169,7 +169,7 @@ export function AuditLogsView({ pageSize = 10 }: AuditLogsViewProps) {
             </span>
           </div>
           <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Append-only security log tracking administrative overrides, refunds, quota edits, and access elevation.
+            Track all admin actions, refunds, and security changes.
           </p>
         </div>
 

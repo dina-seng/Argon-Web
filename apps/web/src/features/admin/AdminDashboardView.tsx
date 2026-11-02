@@ -139,7 +139,7 @@ export function AdminDashboardView({ onNavigateTab: _onNavigateTab }: AdminDashb
             Welcome back, {adminName}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Real-time platform metrics, ticket issuance, and system status.
+            Overview of platform activity, ticket sales, and events.
           </p>
         </div>
 
@@ -222,12 +222,8 @@ export function AdminDashboardView({ onNavigateTab: _onNavigateTab }: AdminDashb
               </Link>
             </div>
 
-            <div className="mt-3 text-2xl sm:text-3xl font-display font-bold text-slate-900 dark:text-white tracking-tight">
+            <div className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-display font-black text-slate-900 dark:text-white tracking-tight">
               {isLoading && !metrics ? '—' : formatCurrency(metrics?.grossRevenue ?? 0)}
-            </div>
-
-            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Total platform earnings settled
             </div>
           </div>
 
@@ -258,12 +254,8 @@ export function AdminDashboardView({ onNavigateTab: _onNavigateTab }: AdminDashb
               </Link>
             </div>
 
-            <div className="mt-3 text-2xl sm:text-3xl font-display font-bold text-slate-900 dark:text-white tracking-tight">
+            <div className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-display font-black text-slate-900 dark:text-white tracking-tight">
               {isLoading && !metrics ? '—' : formatNumber(metrics?.activeEventsCount ?? 0)}
-            </div>
-
-            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Events open for bookings
             </div>
           </div>
 
@@ -294,12 +286,8 @@ export function AdminDashboardView({ onNavigateTab: _onNavigateTab }: AdminDashb
               </Link>
             </div>
 
-            <div className="mt-3 text-2xl sm:text-3xl font-display font-bold text-slate-900 dark:text-white tracking-tight">
+            <div className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-display font-black text-slate-900 dark:text-white tracking-tight">
               {isLoading && !metrics ? '—' : formatNumber(metrics?.totalTicketsSold ?? 0)}
-            </div>
-
-            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Total attendee tickets sold
             </div>
           </div>
 
@@ -341,12 +329,8 @@ export function AdminDashboardView({ onNavigateTab: _onNavigateTab }: AdminDashb
               </Link>
             </div>
 
-            <div className="mt-3 text-2xl sm:text-3xl font-display font-bold text-slate-900 dark:text-white tracking-tight">
+            <div className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-display font-black text-slate-900 dark:text-white tracking-tight">
               {isLoading && !metrics ? '—' : formatNumber(totalUsers)}
-            </div>
-
-            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Registered platform users
             </div>
           </div>
 

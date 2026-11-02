@@ -353,7 +353,7 @@ export function UserManagementView({ pageSize = 10 }: UserManagementViewProps) {
             </span>
           </div>
           <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Manage user accounts, inspect booking and event history, and elevate organizer permissions.
+            View and manage user accounts and roles.
           </p>
         </div>
 

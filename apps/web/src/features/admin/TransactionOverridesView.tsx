@@ -347,7 +347,7 @@ export function TransactionOverridesView({
             )}
           </div>
           <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            View customer bookings, confirm pending payments manually, inspect issued tickets, and issue refunds.
+            Manage ticket orders, payments, and refunds.
           </p>
         </div>
 

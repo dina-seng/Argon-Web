@@ -251,7 +251,7 @@ export function AdminEventsView() {
             </span>
           </div>
           <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Oversee events across all organizers, review ticket quotas, and manage publication statuses.
+            Review, approve, and manage all events on the platform.
           </p>
         </div>
 
