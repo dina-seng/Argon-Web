@@ -25,7 +25,7 @@ import type {
   AdminBookingsQuery,
   GetAdminEventsQuery,
   GetPlatformOverviewQuery,
-} from './schema';
+} from './schema.js';
 import { generateHmacSignature } from '../../lib/hmac.js';
 import { env } from '../../config/env.js';
 import { revokeUserSessions, restoreUserSessions } from '../auth/service.js';

@@ -21,7 +21,7 @@ import {
   toggleUserSuspensionParamsSchema,
   toggleUserSuspensionBodySchema,
   getPlatformOverviewQuerySchema,
-} from './schema';
+} from './schema.js';
 import {
   getPlatformOverviewController,
   listUsersController,
@@ -36,7 +36,7 @@ import {
   getSystemHealthController,
   getUserDetailsController,
   toggleUserSuspensionController,
-} from './controller';
+} from './controller.js';
 
 export async function adminRoutes(app: FastifyInstance) {
   const adminPreHandlers = [app.authenticate, app.authorize([Role.ADMIN])];
