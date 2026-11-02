@@ -20,8 +20,8 @@ export function AuthFrame({
         <div aria-hidden="true" className="absolute -right-28 top-1/3 h-80 w-80 rounded-full border border-white/[0.08]" />
         <div aria-hidden="true" className="absolute -right-12 top-[38%] h-48 w-48 rounded-full border border-white/[0.08]" />
         <div className="relative flex items-center gap-3">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#d9a96b] font-display text-lg font-bold text-[#20202b]">A</span>
-          <span className="font-display text-lg font-semibold tracking-tight">argon</span>
+          <img src="/brand/kit/argon-white.svg" alt="Argon" className="h-9 w-9 object-contain" />
+          <span className="font-display text-lg font-semibold tracking-tight text-white">argon</span>
         </div>
 
         <div className="relative my-auto max-w-lg pb-12">
@@ -55,8 +55,8 @@ export function AuthFrame({
       <section className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-8 lg:px-12">
         <div className="w-full max-w-[440px]">
           <Link to="/" className="mb-10 inline-flex items-center gap-2.5 lg:hidden">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#20202b] font-display font-bold text-[#d9a96b]">A</span>
-            <span className="font-display text-lg font-semibold tracking-tight">argon</span>
+            <img src="/brand/kit/argon-color.svg" alt="Argon" className="h-8 w-8 object-contain dark:invert" />
+            <span className="font-display text-lg font-semibold tracking-tight text-slate-900 dark:text-white">argon</span>
           </Link>
           <div className="mb-8">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#9b7040]">{eyebrow}</p>

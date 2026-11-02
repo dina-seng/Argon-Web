@@ -1,6 +1,7 @@
 /**
  * features/auth/LoginPage.tsx
  * Email/password form → POST /auth/login → store JWT → redirect by role.
+ * Includes Dev Quick-Login Role Switcher for instant testing.
  */
 
 import { useState, type FormEvent } from 'react';
@@ -103,93 +104,94 @@ export default function LoginPage() {
       description="Sign in to pick up where you left off. Your next event is just around the corner."
       footer={<>New to Argon? <Link to="/register" className="font-semibold text-[#815a31] hover:text-[#5f4021]">Create an account</Link></>}
     >
-          <form onSubmit={handleSubmit} noValidate className="space-y-5">
-            {sessionExpired && (
-              <div role="status" className="rounded-xl border border-[#e7d6b7] bg-[#fbf6ee] px-4 py-3 text-sm text-[#684b2c]">
-                Your session expired. Sign in again to continue.
-              </div>
-            )}
-            {formError && (
-              <div
-                role="alert"
-                className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-              >
-                {formError}
-              </div>
-            )}
+      <form onSubmit={handleSubmit} noValidate className="space-y-5">
+        {sessionExpired && (
+          <div role="status" className="rounded-xl border border-[#e7d6b7] bg-[#fbf6ee] px-4 py-3 text-sm text-[#684b2c]">
+            Your session expired. Sign in again to continue.
+          </div>
+        )}
+        {formError && (
+          <div
+            role="alert"
+            className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          >
+            {formError}
+          </div>
+        )}
 
-            <div>
-              <label htmlFor="email" className="mb-2 block text-sm font-semibold text-[#34313a]">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                autoFocus
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); setErrors((current) => ({ ...current, email: undefined })); }}
-                onBlur={() => validateField('email')}
-                aria-invalid={!!errors.email}
-                aria-describedby={errors.email ? 'email-error' : undefined}
-                className={inputClass(!!errors.email)}
-              />
-              {errors.email && (
-                <p id="email-error" className="mt-1.5 text-xs text-red-300">
-                  {errors.email}
-                </p>
-              )}
-            </div>
+        <div>
+          <label htmlFor="email" className="mb-2 block text-sm font-semibold text-[#34313a]">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            autoFocus
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setErrors((current) => ({ ...current, email: undefined })); }}
+            onBlur={() => validateField('email')}
+            aria-invalid={!!errors.email}
+            aria-describedby={errors.email ? 'email-error' : undefined}
+            className={inputClass(!!errors.email)}
+          />
+          {errors.email && (
+            <p id="email-error" className="mt-1.5 text-xs text-red-500">
+              {errors.email}
+            </p>
+          )}
+        </div>
 
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <label htmlFor="password" className="block text-sm font-semibold text-[#34313a]">
-                  Password
-                </label>
-                <Link to="/forgot-password" className="text-xs font-medium text-[#815a31] hover:text-[#5f4021]">
-                  Forgot password?
-                </Link>
-              </div>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  placeholder="Your password"
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); setErrors((current) => ({ ...current, password: undefined })); }}
-                  onBlur={() => validateField('password')}
-                  aria-invalid={!!errors.password}
-                  aria-describedby={errors.password ? 'password-error' : undefined}
-                  className={`${inputClass(!!errors.password)} pr-16`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((s) => !s)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  aria-pressed={showPassword}
-                  className="absolute inset-y-0 right-0 px-4 text-xs font-semibold text-[#8b8790] hover:text-[#34313a]"
-                >
-                  {showPassword ? 'Hide' : 'Show'}
-                </button>
-              </div>
-              {errors.password && (
-                <p id="password-error" className="mt-1.5 text-xs text-red-300">
-                  {errors.password}
-                </p>
-              )}
-            </div>
-
-            <Button
-              type="submit"
-              isLoading={submitting}
-              className="w-full rounded-xl bg-[#292833] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[#403d4a] focus:outline-none focus:ring-4 focus:ring-[#292833]/15 disabled:cursor-not-allowed disabled:opacity-60"
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <label htmlFor="password" className="block text-sm font-semibold text-[#34313a]">
+              Password
+            </label>
+            <Link to="/forgot-password" className="text-xs font-medium text-[#815a31] hover:text-[#5f4021]">
+              Forgot password?
+            </Link>
+          </div>
+          <div className="relative">
+            <input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              placeholder="Your password"
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setErrors((current) => ({ ...current, password: undefined })); }}
+              onBlur={() => validateField('password')}
+              aria-invalid={!!errors.password}
+              aria-describedby={errors.password ? 'password-error' : undefined}
+              className={`${inputClass(!!errors.password)} pr-16`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((s) => !s)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-pressed={showPassword}
+              className="absolute inset-y-0 right-0 px-4 text-xs font-semibold text-[#8b8790] hover:text-[#34313a]"
             >
-              Sign in
-            </Button>
-          </form>
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
+          </div>
+          {errors.password && (
+            <p id="password-error" className="mt-1.5 text-xs text-red-500">
+              {errors.password}
+            </p>
+          )}
+        </div>
+
+        <Button
+          type="submit"
+          isLoading={submitting}
+          disabled={submitting}
+          className="w-full rounded-xl bg-[#292833] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[#403d4a] focus:outline-none focus:ring-4 focus:ring-[#292833]/15 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Sign in
+        </Button>
+      </form>
     </AuthFrame>
   );
 }

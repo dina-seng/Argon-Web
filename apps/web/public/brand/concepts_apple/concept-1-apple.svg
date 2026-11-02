@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Argon — The Cupertino Prism (Apple App Store Icon)</title>
+  <defs>
+    
+    <!-- Standard SVG 1.1 Filter (Universally Supported) -->
+    <filter id="appleSoftShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="12" result="blur" />
+      <feOffset in="blur" dx="0" dy="14" result="offset" />
+      <feComponentTransfer in="offset" result="shadow">
+        <feFuncA type="linear" slope="0.5" />
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode in="shadow" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    
+    <radialGradient id="bgGrad1" cx="50%" cy="25%" r="85%">
+      <stop offset="0%" stop-color="#1E293B" />
+      <stop offset="45%" stop-color="#0F172A" />
+      <stop offset="100%" stop-color="#05070D" />
+    </radialGradient>
+    <linearGradient id="beamLeft1" x1="30%" y1="0%" x2="70%" y2="100%">
+      <stop offset="0%" stop-color="#67E8F9" />
+      <stop offset="40%" stop-color="#06B6D4" />
+      <stop offset="100%" stop-color="#0284C7" />
+    </linearGradient>
+    <linearGradient id="beamRight1" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#818CF8" />
+      <stop offset="50%" stop-color="#6366F1" />
+      <stop offset="100%" stop-color="#4338CA" />
+    </linearGradient>
+    <linearGradient id="crossbarGrad1" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="50%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#A5B4FC" />
+    </linearGradient>
+    <linearGradient id="apexSpecular1" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.0" />
+    </linearGradient>
+    <linearGradient id="rimGrad1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.32" />
+      <stop offset="25%" stop-color="#FFFFFF" stop-opacity="0.10" />
+      <stop offset="70%" stop-color="#FFFFFF" stop-opacity="0.0" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.08" />
+    </linearGradient>
+  </defs>
+
+  
+      <!-- Squircle Background Tile -->
+      <rect width="512" height="512" rx="115" ry="115" fill="url(#bgGrad1)" />
+      
+      <!-- Top Specular Catch Rim -->
+      <rect width="512" height="512" rx="115" ry="115" fill="none" stroke="url(#rimGrad1)" stroke-width="2.5" />
+
+      <!-- Ambient Glow Behind Emblem -->
+      <circle cx="256" cy="256" r="130" fill="#06B6D4" opacity="0.18" />
+      <circle cx="256" cy="270" r="100" fill="#6366F1" opacity="0.22" />
+
+      <!-- Emblem Monogram: The Cupertino Prism -->
+      <g filter="url(#appleSoftShadow)">
+        <!-- Left Optical Beam (Electric Cyan) -->
+        <path d="
+          M 256 104
+          C 246 104 238 110 233 119
+          L 132 322
+          C 126 334 135 348 149 348
+          L 182 348
+          C 192 348 201 342 205 333
+          L 229 282
+          L 283 282
+          L 256 104
+          Z
+        " fill="url(#beamLeft1)" />
+
+        <!-- Right Optical Beam (Deep Royal Indigo) -->
+        <path d="
+          M 256 104
+          L 229 282
+          L 283 282
+          L 307 333
+          C 311 342 320 348 330 348
+          L 363 348
+          C 377 348 386 334 380 322
+          L 279 119
+          C 274 110 266 104 256 104
+          Z
+        " fill="url(#beamRight1)" />
+
+        <!-- Center Ticket Bridge / Dynamic Notch Flare -->
+        <path d="
+          M 218 296
+          L 294 296
+          C 298 296 300 300 298 303
+          C 291 314 275 322 256 322
+          C 237 322 221 314 214 303
+          C 212 300 214 296 218 296
+          Z
+        " fill="url(#crossbarGrad1)" />
+
+        <!-- Inner Negative Space Void -->
+        <path d="
+          M 256 168
+          L 274 254
+          L 238 254
+          Z
+        " fill="#0A101D" />
+
+        <!-- Apex Micro-Chamfer Specular Reflection -->
+        <path d="
+          M 242 114
+          C 249 106 263 106 270 114
+          L 256 130
+          Z
+        " fill="url(#apexSpecular1)" />
+      </g>
+      
+      <!-- Surface Glass Diagonal Sheen -->
+      <path d="M 0 0 L 260 0 L 0 380 Z" fill="#FFFFFF" opacity="0.03" />
+    
+</svg>

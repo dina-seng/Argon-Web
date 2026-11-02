@@ -20,7 +20,15 @@ declare module 'fastify' {
 }
 
 export const auditLogPlugin = fp(async (app) => {
-  app.decorate('writeAuditLog', async (_entry: AuditLogEntry): Promise<void> => {
-    // TODO: implement using app.prisma.auditLog.create(...)
+  app.decorate('writeAuditLog', async (entry: AuditLogEntry): Promise<void> => {
+    await app.prisma.auditLog.create({
+      data: {
+        actorId: entry.actorId,
+        action: entry.action,
+        entity: entry.entity,
+        entityId: entry.entityId,
+        metadata: (entry.metadata as any) ?? undefined,
+      },
+    });
   });
 });

@@ -46,6 +46,8 @@ client.interceptors.response.use(
 
 export const api = {
   get: async <T>(path: string): Promise<T> => (await client.get<T>(path)).data,
-  post: async <T>(path: string, body: unknown): Promise<T> => (await client.post<T>(path, body)).data,
-  patch: async <T>(path: string, body: unknown): Promise<T> => (await client.patch<T>(path, body)).data,
+  post: async <T>(path: string, body?: unknown): Promise<T> => (await client.post<T>(path, body)).data,
+  put: async <T>(path: string, body?: unknown): Promise<T> => (await client.put<T>(path, body)).data,
+  patch: async <T>(path: string, body?: unknown): Promise<T> => (await client.patch<T>(path, body)).data,
+  delete: async <T>(path: string): Promise<T> => (await client.delete<T>(path)).data,
 };

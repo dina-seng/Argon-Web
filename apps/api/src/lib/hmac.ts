@@ -37,3 +37,53 @@ export function verifyQrToken(token: string, secret: string): string {
 
   return payload;
 }
+
+/**
+ * Generates an HMAC-SHA256 signature for a given payload and secret.
+ */
+export function generateHmacSignature(payload: string, secret: string): string {
+  return createHmac('sha256', secret).update(payload).digest('hex');
+}
+
+/**
+ * Verifies an HMAC signature against a payload and secret,
+ * or verifies a combined token (payload:signature or payload.signature) against a secret.
+ */
+export function verifyHmacSignature(
+  payloadOrToken: string,
+  signatureOrSecret: string,
+  maybeSecret?: string
+): boolean {
+  try {
+    let payload: string;
+    let signature: string;
+    let secret: string;
+
+    if (maybeSecret !== undefined) {
+      payload = payloadOrToken;
+      signature = signatureOrSecret;
+      secret = maybeSecret;
+    } else {
+      secret = signatureOrSecret;
+      const separatorIndex = payloadOrToken.lastIndexOf(':') !== -1
+        ? payloadOrToken.lastIndexOf(':')
+        : payloadOrToken.lastIndexOf('.');
+      if (separatorIndex === -1) {
+        return false;
+      }
+      payload = payloadOrToken.slice(0, separatorIndex);
+      signature = payloadOrToken.slice(separatorIndex + 1);
+    }
+
+    const expectedSig = createHmac('sha256', secret).update(payload).digest('hex');
+    const a = Buffer.from(signature, 'hex');
+    const b = Buffer.from(expectedSig, 'hex');
+
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}

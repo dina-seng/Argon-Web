@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>Argon — Concept B: Octet Turnstile</title>
+  <g fill="#000000">
+    <!-- Top Wing -->
+    <path d="M 68 36 L 156 36 L 156 68 L 104 68 L 104 104 L 68 104 Z"/>
+    <!-- Right Wing -->
+    <path d="M 220 68 L 220 156 L 188 156 L 188 104 L 152 104 L 152 68 Z"/>
+    <!-- Bottom Wing -->
+    <path d="M 188 220 L 100 220 L 100 188 L 152 188 L 152 152 L 188 152 Z"/>
+    <!-- Left Wing -->
+    <path d="M 36 188 L 36 100 L 68 100 L 68 152 L 104 152 L 104 188 Z"/>
+    <!-- Central Kinetic Diamond Core -->
+    <polygon points="128,110 146,128 128,146 110,128"/>
+  </g>
+</svg>

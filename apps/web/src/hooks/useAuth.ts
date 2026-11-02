@@ -1,10 +1,16 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { JwtPayload } from '@argon/shared';
+import type { JwtPayload, Role } from '@argon/shared';
 import { api } from '../lib/api';
-import { clearToken, getRefreshToken, getToken, setSessionTokens } from '../lib/auth';
+import { clearToken, getRefreshToken, getToken, setSessionTokens, parseJwt } from '../lib/auth';
 
-interface AuthContextValue {
+export interface AuthContextValue {
   user: JwtPayload | null;
+  token: string | null;
+  role: Role | null;
+  isAdmin: boolean;
+  isOrganizer: boolean;
+  isCustomer: boolean;
+  isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<JwtPayload>;
   register: (input: { name: string; email: string; password: string; confirmPassword: string; role: 'CUSTOMER' | 'ORGANIZER' }) => Promise<JwtPayload>;
@@ -12,32 +18,32 @@ interface AuthContextValue {
   logout: () => Promise<void>;
 }
 
-interface TokenResponse { token: string; refreshToken: string; expiresIn: string }
-const AuthContext = createContext<AuthContextValue | null>(null);
+export type AuthContextType = AuthContextValue;
+
+interface TokenResponse {
+  token: string;
+  refreshToken: string;
+  expiresIn: string;
+}
+
+export const AuthContext = createContext<AuthContextValue | null>(null);
 
 function decodeToken(token: string | null): JwtPayload | null {
   if (!token) return null;
-  try {
-    const encodedPayload = token.split('.')[1];
-    if (!encodedPayload) return null;
-    const base64 = encodedPayload.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
-    const value: unknown = JSON.parse(atob(padded));
-    if (typeof value !== 'object' || value === null || !('sub' in value) || !('email' in value) || !('role' in value)) return null;
-    return value as JwtPayload;
-  } catch {
-    return null;
-  }
+  return parseJwt(token);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [tokenState, setTokenState] = useState<string | null>(() => getToken());
   const [user, setUser] = useState<JwtPayload | null>(() => decodeToken(getToken()));
   const [isLoading, setIsLoading] = useState(() => !getToken() && getRefreshToken() !== null);
 
   useEffect(() => {
     const syncSession = () => {
-      setUser(decodeToken(getToken()));
-      if (!getToken() && !getRefreshToken()) setIsLoading(false);
+      const currentToken = getToken();
+      setTokenState(currentToken);
+      setUser(decodeToken(currentToken));
+      if (!currentToken && !getRefreshToken()) setIsLoading(false);
     };
     window.addEventListener('argon:auth-change', syncSession);
     return () => window.removeEventListener('argon:auth-change', syncSession);
@@ -48,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const decoded = decodeToken(token);
     if (!decoded) throw new Error('The server returned an invalid session token.');
     setSessionTokens(token, refreshToken);
+    setTokenState(token);
     setUser(decoded);
     return decoded;
   }, []);
@@ -57,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const decoded = decodeToken(token);
     if (!decoded) throw new Error('The server returned an invalid session token.');
     setSessionTokens(token, refreshToken);
+    setTokenState(token);
     setUser(decoded);
     return decoded;
   }, []);
@@ -68,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const decoded = decodeToken(result.token);
     if (!decoded) throw new Error('The server returned an invalid session token.');
     setSessionTokens(result.token, result.refreshToken);
+    setTokenState(result.token);
     setUser(decoded);
     setIsLoading(false);
     return decoded;
@@ -79,12 +88,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await api.post<void>('/auth/logout', refreshToken ? { refreshToken } : {});
     } finally {
       clearToken();
+      setTokenState(null);
       setUser(null);
       setIsLoading(false);
     }
   }, []);
 
-  const value = useMemo(() => ({ user, isLoading, login, register, refreshSession, logout }), [user, isLoading, login, register, refreshSession, logout]);
+  const role = user?.role ?? null;
+  const isAdmin = user?.role === 'ADMIN';
+  const isOrganizer = user?.role === 'ORGANIZER';
+  const isCustomer = user?.role === 'CUSTOMER';
+  const isAuthenticated = user !== null;
+
+  const value: AuthContextValue = useMemo(() => ({
+    user,
+    token: tokenState,
+    role,
+    isAdmin,
+    isOrganizer,
+    isCustomer,
+    isAuthenticated,
+    isLoading,
+    login,
+    register,
+    refreshSession,
+    logout,
+  }), [user, tokenState, role, isAdmin, isOrganizer, isCustomer, isAuthenticated, isLoading, login, register, refreshSession, logout]);
+
   return createElement(AuthContext.Provider, { value }, children);
 }
 

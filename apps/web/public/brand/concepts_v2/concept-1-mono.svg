@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>Argon — The Plasma Portal (Monochrome)</title>
+  <path fill="#000000" fill-rule="evenodd" d="
+    M 128 32
+    C 92 32 68 64 64 108
+    C 60 152 86 198 128 218
+    C 170 238 206 214 216 176
+    C 226 138 210 94 178 68
+    C 158 52 140 48 128 32
+    Z
+    M 128 72
+    C 142 88 158 108 166 136
+    C 174 164 160 184 136 178
+    C 112 172 98 144 100 118
+    C 102 92 114 78 128 72
+    Z
+  "/>
+</svg>

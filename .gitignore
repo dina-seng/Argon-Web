@@ -4,6 +4,7 @@ node_modules/
 
 # Build outputs
 dist/
+dev-dist/
 build/
 .next/
 out/
@@ -52,3 +53,12 @@ coverage/
 
 # Vite cache
 .vite/
+
+# Git worktrees
+.worktrees/
+.worktree/
+
+
+# ArchDoc Documentation System
+doc/
+docs/archdoc

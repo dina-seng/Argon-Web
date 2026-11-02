@@ -1,13 +1,84 @@
 /** modules/organizer/routes.ts – ORGANIZER role guard required */
 import type { FastifyInstance } from 'fastify';
-import { Role } from '@argon/shared';
-import { requireRole } from '../../lib/requireRole.js';
-import { getMetricsController, issueStaffController, listMyEventsController, getMyEventController } from './controller.js';
-import { eventIdParamSchema } from './schema.js';
+import { Role } from '@prisma/client';
+import {
+  getMetricsController,
+  updateTierQuotaController,
+  getAttendeesController,
+  issueStaffController,
+  listOrganizerEventsController,
+  getMyEventController,
+} from './controller.js';
+import {
+  getEventMetricsParamsSchema,
+  updateTierQuotaParamsSchema,
+  updateTierQuotaBodySchema,
+  getAttendeesParamsSchema,
+  getAttendeesQuerySchema,
+  eventIdParamSchema,
+} from './schema.js';
 export async function organizerRoutes(app: FastifyInstance) {
-  const organizerOnly = [requireRole(Role.ORGANIZER)];
-  app.get('/events', { preHandler: organizerOnly, handler: listMyEventsController });
-  app.get('/events/:eventId', { preHandler: organizerOnly, schema: { params: eventIdParamSchema }, handler: getMyEventController });
-  app.get('/events/:eventId/metrics', { preHandler: organizerOnly, schema: { params: eventIdParamSchema }, handler: getMetricsController });
-  app.post('/staff', { preHandler: organizerOnly, handler: issueStaffController });
+  const organizerAuth = [app.authenticate, app.authorize([Role.ORGANIZER, Role.ADMIN])];
+
+  app.get(
+    '/events',
+    {
+      preHandler: organizerAuth,
+    },
+    listOrganizerEventsController
+  );
+
+  app.get(
+    '/events/:eventId',
+    {
+      schema: {
+        params: eventIdParamSchema,
+      },
+      preHandler: organizerAuth,
+    },
+    getMyEventController
+  );
+
+  app.get(
+    '/events/:eventId/metrics',
+    {
+      schema: {
+        params: getEventMetricsParamsSchema,
+      },
+      preHandler: organizerAuth,
+    },
+    getMetricsController
+  );
+
+  app.patch(
+    '/events/:eventId/tiers/:tierId/quota',
+    {
+      schema: {
+        params: updateTierQuotaParamsSchema,
+        body: updateTierQuotaBodySchema,
+      },
+      preHandler: organizerAuth,
+    },
+    updateTierQuotaController
+  );
+
+  app.get(
+    '/events/:eventId/attendees',
+    {
+      schema: {
+        params: getAttendeesParamsSchema,
+        querystring: getAttendeesQuerySchema,
+      },
+      preHandler: organizerAuth,
+    },
+    getAttendeesController
+  );
+
+  app.post(
+    '/staff',
+    {
+      preHandler: organizerAuth,
+    },
+    issueStaffController
+  );
 }

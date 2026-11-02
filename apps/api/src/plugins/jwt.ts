@@ -8,7 +8,8 @@ import fastifyJwt from '@fastify/jwt';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { env } from '../config/env.js';
 import type { JwtPayload } from '@argon/shared';
-import { isAccessTokenRevoked } from '../modules/auth/service.js';
+import type { Role } from '@prisma/client';
+import { isAccessTokenRevoked, isUserRevoked } from '../modules/auth/service.js';
 
 declare module '@fastify/jwt' {
   interface FastifyJWT {
@@ -20,6 +21,7 @@ declare module '@fastify/jwt' {
 declare module 'fastify' {
   interface FastifyInstance {
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+    authorize: (allowedRoles: Role[]) => (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
   }
 }
 
@@ -41,6 +43,13 @@ export const jwtPlugin = fp(async (app) => {
     const accessToken = authorization?.startsWith('Bearer ') ? authorization.slice(7) : undefined;
     if (accessToken && await isAccessTokenRevoked(app, accessToken)) {
       reply.status(401).send({ statusCode: 401, error: 'Unauthorized', message: 'Invalid or expired token' });
+      return;
+    }
+
+    const userId = request.user?.sub;
+    if (userId && await isUserRevoked(app, userId)) {
+      reply.status(401).send({ statusCode: 401, error: 'Unauthorized', message: 'Account has been suspended' });
+      return;
     }
   });
 });

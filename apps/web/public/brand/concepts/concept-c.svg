@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>Argon — Concept C: Verified Ticket Delta</title>
+  <path fill="#000000" fill-rule="evenodd" d="
+    M 56 36
+    L 200 36
+    A 24 24 0 0 1 224 60
+    L 224 104
+    A 24 24 0 0 0 224 152
+    L 224 196
+    A 24 24 0 0 1 200 220
+    L 56 220
+    A 24 24 0 0 1 32 196
+    L 32 152
+    A 24 24 0 0 0 32 104
+    L 32 60
+    A 24 24 0 0 1 56 36
+    Z
+    M 128 64
+    L 184 184
+    L 148 184
+    L 138 160
+    L 118 160
+    L 108 184
+    L 72 184
+    Z
+    M 128 104
+    L 122 136
+    L 134 136
+    Z
+  "/>
+</svg>

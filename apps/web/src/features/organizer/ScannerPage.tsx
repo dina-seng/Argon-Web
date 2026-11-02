@@ -1,52 +1,251 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { api, ApiRequestError } from '../../lib/api';
+import { Header } from '../../components/layout/Header';
+import { Footer } from '../../components/layout/Footer';
+import { api } from '../../lib/api';
 import {
   QrCode,
   Camera,
   CheckCircle2,
   AlertTriangle,
   XCircle,
+  ArrowRight,
   Search,
   Zap,
   Volume2,
   VolumeX,
-  History
+  History,
+  ShieldAlert,
 } from 'lucide-react';
 
-/** Shape returned by POST /checkin/scan (see apps/api/src/modules/checkin/service.ts). */
-interface ScanResult {
-  outcome: 'CHECKED_IN' | 'DUPLICATE' | 'REVOKED' | 'INVALID';
-  statusCode: number;
-  checkedInAt?: string;
-  priorCheckedInAt?: string;
+export interface ScanResultTicket {
+  id?: string;
+  orderNumber?: string;
   holderName?: string;
   eventTitle?: string;
   tierName?: string;
-  message?: string;
+  qrToken?: string;
 }
 
-interface AuditLogEntry {
-  id: string;
-  token: string;
-  outcome: string;
+export interface ScanResultState {
+  statusCode: number;
+  outcome: 'CHECKED_IN' | 'DUPLICATE' | 'REVOKED' | 'INVALID' | 'UNAUTHORIZED';
   message: string;
-  timestamp: number;
+  checkedInAt?: string;
+  priorCheckedInAt?: string;
+  ticket?: ScanResultTicket;
 }
 
-let logId = 0;
+export interface ScanAuditLogItem {
+  id: string;
+  orderNumber: string;
+  message: string;
+  outcome: 'CHECKED_IN' | 'DUPLICATE' | 'REVOKED' | 'INVALID' | 'UNAUTHORIZED';
+  timestamp: string;
+}
 
 export default function ScannerPage() {
   const location = useLocation();
 
   const [inputToken, setInputToken] = useState('');
-  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [scanResult, setScanResult] = useState<ScanResultState | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
-  const [scannedCheckedIn, setScannedCheckedIn] = useState(0);
+  const [checkedInCount, setCheckedInCount] = useState<number>(0);
+  const [pendingCount, setPendingCount] = useState<number>(0);
+  const [scanAuditLogs, setScanAuditLogs] = useState<ScanAuditLogItem[]>([]);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Audio feedback synthesizer
+  const playSound = useCallback(
+    (type: 'success' | 'duplicate' | 'error') => {
+      if (!soundEnabled || typeof window === 'undefined') return;
+      try {
+        const ctx = new (window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        if (type === 'success') {
+          osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+          osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1); // A5
+          gain.gain.setValueAtTime(0.15, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.3);
+        } else if (type === 'duplicate') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(320, ctx.currentTime);
+          osc.frequency.setValueAtTime(240, ctx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.2, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.4);
+        } else {
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(180, ctx.currentTime);
+          gain.gain.setValueAtTime(0.2, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.35);
+        }
+      } catch {
+        // AudioContext not allowed or unsupported
+      }
+    },
+    [soundEnabled]
+  );
+
+  // Load gate operational stats from live events API
+  useEffect(() => {
+    const loadGateStats = async () => {
+      try {
+        let events: any[] = [];
+        try {
+          const res = await api.get<any[]>('/organizer/events');
+          events = Array.isArray(res) ? res : (res as any)?.events ?? [];
+        } catch {
+          const res = await api.get<any[]>('/api/v1/organizer/events');
+          events = Array.isArray(res) ? res : (res as any)?.events ?? [];
+        }
+
+        if (events.length > 0) {
+          const totalCheckedIn = events.reduce((acc, e) => acc + (e.totalCheckedIn || 0), 0);
+          const totalSold = events.reduce((acc, e) => acc + (e.totalSold || 0), 0);
+          setCheckedInCount(totalCheckedIn);
+          setPendingCount(Math.max(0, totalSold - totalCheckedIn));
+        }
+      } catch {
+        // Non-critical, fallback to zeros
+      }
+    };
+    loadGateStats();
+  }, []);
+
+  // Perform ticket scan against Fastify checkin API
+  const handlePerformScan = useCallback(
+    async (tokenToScan: string) => {
+      const token = tokenToScan.trim();
+      if (!token) return;
+
+      setIsScanning(true);
+
+      try {
+        let res: any;
+        try {
+          res = await api.post('/checkin/scan', { qrToken: token });
+        } catch (firstErr: any) {
+          const msg = String(firstErr?.message || '');
+          if (/API error (400|401|403|404|409)/.test(msg)) {
+            throw firstErr;
+          }
+          res = await api.post('/api/v1/checkin/scan', { qrToken: token });
+        }
+
+        const ticketInfo: ScanResultTicket = res.ticket || {
+          holderName: res.holderName || 'Verified Attendee',
+          eventTitle: res.eventTitle || 'Argon Event',
+          tierName: res.tierName || 'Standard Admission',
+          orderNumber: res.orderNumber || res.ticketId || token,
+        };
+
+        const successResult: ScanResultState = {
+          statusCode: 200,
+          outcome: 'CHECKED_IN',
+          message: res.message || 'Check-in successful! Welcome to the event.',
+          checkedInAt: res.checkedInAt || new Date().toISOString(),
+          ticket: ticketInfo,
+        };
+
+        setScanResult(successResult);
+        playSound('success');
+        setCheckedInCount((c) => c + 1);
+        setPendingCount((p) => Math.max(0, p - 1));
+
+        setScanAuditLogs((prev) => [
+          {
+            id: `scan-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            orderNumber: ticketInfo.orderNumber || token,
+            message: 'Checked In Successfully',
+            outcome: 'CHECKED_IN',
+            timestamp: new Date().toISOString(),
+          },
+          ...prev.slice(0, 49),
+        ]);
+      } catch (err: any) {
+        const rawMsg: string = err?.message || 'Check-in failed';
+        let statusCode = 400;
+        let outcome: 'DUPLICATE' | 'INVALID' | 'REVOKED' | 'UNAUTHORIZED' = 'INVALID';
+        let userMessage = rawMsg;
+
+        if (rawMsg.includes('409') || rawMsg.toLowerCase().includes('already checked in')) {
+          statusCode = 409;
+          outcome = 'DUPLICATE';
+          userMessage = rawMsg.replace(/^API error 409:?\s*/i, '') || 'Ticket already used for check-in';
+          playSound('duplicate');
+        } else if (rawMsg.includes('401')) {
+          statusCode = 401;
+          outcome = 'UNAUTHORIZED';
+          userMessage = 'Unauthorized. Please sign in with organizer credentials.';
+          playSound('error');
+        } else if (rawMsg.includes('403')) {
+          statusCode = 403;
+          outcome = 'UNAUTHORIZED';
+          userMessage = 'Forbidden. Gate scanning requires organizer or gate-staff permissions.';
+          playSound('error');
+        } else if (rawMsg.includes('404')) {
+          statusCode = 404;
+          outcome = 'INVALID';
+          userMessage = 'Ticket token not found in event registry.';
+          playSound('error');
+        } else {
+          statusCode = 400;
+          if (rawMsg.toLowerCase().includes('revoked')) {
+            outcome = 'REVOKED';
+            userMessage = rawMsg.replace(/^API error 400:?\s*/i, '') || 'Ticket has been revoked or expired.';
+          } else {
+            outcome = 'INVALID';
+            userMessage = rawMsg.replace(/^API error \d+:?\s*/i, '') || 'Invalid or unverifiable QR ticket.';
+          }
+          playSound('error');
+        }
+
+        const priorTime = rawMsg.includes('at ') ? rawMsg.split('at ')[1] : undefined;
+
+        const errorResult: ScanResultState = {
+          statusCode,
+          outcome,
+          message: userMessage,
+          priorCheckedInAt: err?.data?.priorCheckedInAt || priorTime,
+          ticket: {
+            holderName: err?.data?.holderName || 'Attendee',
+            eventTitle: err?.data?.eventTitle || 'Argon Event Registry',
+            tierName: err?.data?.tierName || 'General',
+            orderNumber: token,
+          },
+        };
+
+        setScanResult(errorResult);
+        setScanAuditLogs((prev) => [
+          {
+            id: `scan-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            orderNumber: token,
+            message: userMessage,
+            outcome,
+            timestamp: new Date().toISOString(),
+          },
+          ...prev.slice(0, 49),
+        ]);
+      } finally {
+        setIsScanning(false);
+      }
+    },
+    [playSound]
+  );
 
   // Read ?token= query parameter if passed from ticket page
   useEffect(() => {
@@ -56,112 +255,7 @@ export default function ScannerPage() {
       setInputToken(tokenParam);
       handlePerformScan(tokenParam);
     }
-  }, [location.search]);
-
-  // Audio feedback synthesizer
-  const playSound = useCallback((type: 'success' | 'duplicate' | 'error') => {
-    if (!soundEnabled || typeof window === 'undefined') return;
-    try {
-      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      if (type === 'success') {
-        osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1); // A5
-        gain.gain.setValueAtTime(0.15, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.3);
-      } else if (type === 'duplicate') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(320, ctx.currentTime);
-        osc.frequency.setValueAtTime(240, ctx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.4);
-      } else {
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(180, ctx.currentTime);
-        gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.35);
-      }
-    } catch {
-      // AudioContext not allowed or unsupported
-    }
-  }, [soundEnabled]);
-
-  // Perform ticket scan against real backend
-  const handlePerformScan = useCallback(async (tokenToScan: string) => {
-    if (!tokenToScan.trim()) return;
-
-    try {
-      const result = await api.post<ScanResult>('/checkin/scan', { qrToken: tokenToScan });
-      const full: ScanResult = { ...result, statusCode: 200 };
-      setScanResult(full);
-
-      if (full.outcome === 'CHECKED_IN') {
-        playSound('success');
-        setScannedCheckedIn((c) => c + 1);
-      }
-
-      setAuditLogs((prev) => [
-        {
-          id: `log-${++logId}`,
-          token: tokenToScan,
-          outcome: full.outcome,
-          message: full.message ?? full.outcome,
-          timestamp: Date.now(),
-        },
-        ...prev,
-      ]);
-    } catch (err) {
-      // 409 = DUPLICATE, 400 = INVALID / REVOKED
-      if (err instanceof ApiRequestError) {
-        const data = err.data as Partial<ScanResult> | undefined;
-        const result: ScanResult = {
-          outcome: (data?.outcome as ScanResult['outcome']) ?? 'INVALID',
-          statusCode: err.status,
-          checkedInAt: data?.checkedInAt,
-          priorCheckedInAt: data?.priorCheckedInAt,
-          holderName: data?.holderName,
-          eventTitle: data?.eventTitle,
-          tierName: data?.tierName,
-          message: data?.message ?? err.message,
-        };
-        setScanResult(result);
-
-        if (result.outcome === 'DUPLICATE') {
-          playSound('duplicate');
-        } else {
-          playSound('error');
-        }
-
-        setAuditLogs((prev) => [
-          {
-            id: `log-${++logId}`,
-            token: tokenToScan,
-            outcome: result.outcome,
-            message: result.message ?? result.outcome,
-            timestamp: Date.now(),
-          },
-          ...prev,
-        ]);
-      } else {
-        setScanResult({
-          outcome: 'INVALID',
-          statusCode: 0,
-          message: err instanceof Error ? err.message : 'Network error',
-        });
-        playSound('error');
-      }
-    }
-  }, [playSound]);
+  }, [location.search, handlePerformScan]);
 
   // Camera toggle handler
   const toggleCamera = async () => {
@@ -186,28 +280,50 @@ export default function ScannerPage() {
         setCameraError(null);
       } catch (err) {
         console.warn('Camera access unavailable:', err);
-        setCameraError('Camera not available or permission denied. Use one-click simulation below.');
+        setCameraError('Camera not available or permission denied. Please enter the QR token manually below.');
         setCameraActive(false);
       }
     }
   };
 
+  // Continuous frame barcode detection when camera active
+  useEffect(() => {
+    if (!cameraActive || !videoRef.current) return;
+    let animId: number;
+
+    if ('BarcodeDetector' in window) {
+      try {
+        const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+        const scanFrame = async () => {
+          if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+            try {
+              const barcodes = await detector.detect(videoRef.current);
+              if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+                const detected = barcodes[0].rawValue;
+                setInputToken(detected);
+                handlePerformScan(detected);
+                await new Promise((r) => setTimeout(r, 1500));
+              }
+            } catch {
+              // Frame decoding error ignore
+            }
+          }
+          animId = requestAnimationFrame(scanFrame);
+        };
+        animId = requestAnimationFrame(scanFrame);
+      } catch {
+        // Fallback
+      }
+    }
+
+    return () => {
+      if (animId) cancelAnimationFrame(animId);
+    };
+  }, [cameraActive, handlePerformScan]);
+
   return (
     <div className="min-h-screen bg-[#090a10] text-zinc-100 flex flex-col font-sans">
-      {/* Inline header for scanner page */}
-      <header className="border-b border-white/[0.07] bg-[#0c0d14]/90 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <span className="font-display text-2xl font-black tracking-tight text-white group-hover:text-primary-300 transition-colors">
-              argon
-            </span>
-            <span className="w-5 h-1 rounded-full bg-gradient-to-r from-cyan-400 via-primary-500 to-fuchsia-500 shadow-[0_0_8px_rgba(120,87,255,0.8)]" />
-          </Link>
-          <Link to="/organizer" className="text-xs text-purple-300 hover:text-purple-200 transition">
-            ← Organizer Dashboard
-          </Link>
-        </div>
-      </header>
+      <Header />
 
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Top Header */}
@@ -217,7 +333,7 @@ export default function ScannerPage() {
               <span className="px-2.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider bg-purple-950/80 text-purple-300 border border-purple-800/60">
                 Staff Check-In Gate
               </span>
-              <span className="text-zinc-500 text-xs">Phnom Penh Venue Entry</span>
+              <span className="text-zinc-500 text-xs">Live Fastify Gateway</span>
             </div>
             <h1 className="font-display text-3xl font-extrabold text-white mt-1">
               Organizer QR Ticket Scanner
@@ -231,11 +347,11 @@ export default function ScannerPage() {
           <div className="flex items-center gap-3">
             <div className="bg-[#12131b] border border-white/[0.08] px-3.5 py-2 rounded-xl text-center">
               <span className="block text-[10px] text-zinc-500 uppercase font-bold">Checked In</span>
-              <span className="text-lg font-bold text-purple-400">{scannedCheckedIn}</span>
+              <span className="text-lg font-bold text-purple-400">{checkedInCount}</span>
             </div>
             <div className="bg-[#12131b] border border-white/[0.08] px-3.5 py-2 rounded-xl text-center">
-              <span className="block text-[10px] text-zinc-500 uppercase font-bold">Scans Today</span>
-              <span className="text-lg font-bold text-emerald-400">{auditLogs.length}</span>
+              <span className="block text-[10px] text-zinc-500 uppercase font-bold">Pending Entry</span>
+              <span className="text-lg font-bold text-emerald-400">{pendingCount}</span>
             </div>
             <button
               onClick={() => setSoundEnabled(!soundEnabled)}
@@ -285,7 +401,7 @@ export default function ScannerPage() {
                     <QrCode className="w-16 h-16 text-zinc-700 mx-auto mb-2 animate-pulse" />
                     <p className="text-xs text-zinc-400 font-medium">Ready for QR Ticket</p>
                     <p className="text-[11px] text-zinc-600 mt-1">
-                      Align QR code inside scanning target, or use instant simulation buttons below
+                      Align QR code inside scanning target, or enter token below
                     </p>
                   </div>
                 )}
@@ -316,7 +432,7 @@ export default function ScannerPage() {
                   onSubmit={(e) => {
                     e.preventDefault();
                     if (inputToken.trim()) {
-                      handlePerformScan(inputToken.trim());
+                      handlePerformScan(inputToken);
                     }
                   }}
                   className="flex gap-2"
@@ -327,29 +443,19 @@ export default function ScannerPage() {
                       type="text"
                       value={inputToken}
                       onChange={(e) => setInputToken(e.target.value)}
-                      placeholder="Enter QR token to scan..."
+                      placeholder="Enter QR token or ticket code..."
                       className="w-full bg-[#181926] border border-zinc-700/80 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 font-mono"
                     />
                   </div>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-[#7857ff] hover:bg-[#6b47ff] text-white text-xs font-semibold rounded-xl transition flex items-center gap-1.5 shrink-0"
+                    disabled={isScanning || !inputToken.trim()}
+                    className="px-4 py-2 bg-[#7857ff] hover:bg-[#6b47ff] text-white text-xs font-semibold rounded-xl transition flex items-center gap-1.5 shrink-0 disabled:opacity-50"
                   >
                     <Zap className="w-3.5 h-3.5" />
-                    <span>Verify</span>
+                    <span>{isScanning ? 'Verifying…' : 'Verify'}</span>
                   </button>
                 </form>
-              </div>
-
-              {/* Instant One-Click Test Simulation Scenarios */}
-              <div className="mt-6 pt-5 border-t border-zinc-800/80">
-                <span className="text-xs font-semibold text-zinc-300 block mb-2.5">
-                  Test with a real QR token (paste from a ticket):
-                </span>
-                <p className="text-[11px] text-zinc-500 mb-2">
-                  The scanner calls <code className="text-zinc-400">POST /checkin/scan</code> on the real backend.
-                  Paste a valid QR token from any ticket pass page to test check-in.
-                </p>
               </div>
             </div>
           </div>
@@ -372,7 +478,7 @@ export default function ScannerPage() {
                   <QrCode className="w-10 h-10 text-zinc-700 mx-auto mb-2" />
                   <p className="text-xs text-zinc-400 font-medium">Awaiting scan</p>
                   <p className="text-[11px] text-zinc-600 mt-1">
-                    Point camera at attendee pass or enter a QR token
+                    Point camera at attendee pass or enter token to verify
                   </p>
                 </div>
               ) : scanResult.outcome === 'CHECKED_IN' ? (
@@ -387,18 +493,24 @@ export default function ScannerPage() {
                         VALID · CHECKED IN
                       </span>
                       <h3 className="font-display text-xl font-bold text-white mt-1.5">
-                        {scanResult.holderName ?? 'Attendee'}
+                        {scanResult.ticket?.holderName}
                       </h3>
                       <p className="text-xs text-emerald-300 font-medium">
-                        {scanResult.eventTitle ?? 'Event'}
+                        {scanResult.ticket?.eventTitle}
                       </p>
                     </div>
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-emerald-900/40 space-y-1.5 text-xs text-zinc-300 font-sans">
                     <div className="flex justify-between">
+                      <span className="text-zinc-400">Order ID:</span>
+                      <span className="font-mono font-semibold text-white">
+                        {scanResult.ticket?.orderNumber}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
                       <span className="text-zinc-400">Tier:</span>
-                      <span className="text-white">{scanResult.tierName ?? '—'}</span>
+                      <span className="text-white">{scanResult.ticket?.tierName}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-zinc-400">Admission:</span>
@@ -407,15 +519,24 @@ export default function ScannerPage() {
                     <div className="flex justify-between">
                       <span className="text-zinc-400">Timestamp:</span>
                       <span className="font-mono text-zinc-300">
-                        {scanResult.checkedInAt ? new Date(scanResult.checkedInAt).toLocaleTimeString() : new Date().toLocaleTimeString()} ICT
+                        {new Date(scanResult.checkedInAt ?? Date.now()).toLocaleTimeString()} ICT
                       </span>
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-emerald-900/40">
+                  <div className="mt-4 pt-3 border-t border-emerald-900/40 flex items-center justify-between">
                     <span className="text-[11px] text-emerald-400">
                       ✓ Status updated in database
                     </span>
+                    {scanResult.ticket?.orderNumber && (
+                      <Link
+                        to={`/tickets/${scanResult.ticket.orderNumber}`}
+                        className="text-xs text-white bg-emerald-600/30 hover:bg-emerald-600/50 px-3 py-1.5 rounded-lg border border-emerald-500/40 transition flex items-center gap-1 font-medium"
+                      >
+                        <span>View Pass</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    )}
                   </div>
                 </div>
               ) : scanResult.outcome === 'DUPLICATE' ? (
@@ -433,7 +554,7 @@ export default function ScannerPage() {
                         Entry Already Used!
                       </h3>
                       <p className="text-xs text-amber-300">
-                        {scanResult.holderName ?? 'Attendee'}
+                        {scanResult.ticket?.holderName} ({scanResult.ticket?.orderNumber})
                       </p>
                     </div>
                   </div>
@@ -450,6 +571,45 @@ export default function ScannerPage() {
                       . Duplicate scans are blocked by security policy.
                     </p>
                   </div>
+
+                  <div className="mt-4 flex items-center justify-between text-xs">
+                    <span className="text-[11px] text-zinc-400">Action: Refuse entry</span>
+                    {scanResult.ticket?.orderNumber && (
+                      <Link
+                        to={`/tickets/${scanResult.ticket.orderNumber}`}
+                        className="text-amber-300 hover:underline flex items-center gap-1"
+                      >
+                        <span>Inspect Ticket</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ) : scanResult.outcome === 'UNAUTHORIZED' ? (
+                /* UNAUTHORIZED / FORBIDDEN (401/403) */
+                <div className="bg-amber-950/30 border border-amber-500/60 rounded-xl p-5 animate-in zoom-in-95">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-400 flex items-center justify-center shrink-0 text-amber-400">
+                      <ShieldAlert className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1">
+                      <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider bg-amber-950 text-amber-300 border border-amber-700">
+                        {scanResult.statusCode} · ACCESS DENIED
+                      </span>
+                      <h3 className="font-display text-lg font-bold text-white mt-1.5">
+                        Organizer Privileges Required
+                      </h3>
+                      <p className="text-xs text-amber-300 mt-1">{scanResult.message}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-amber-900/40 flex justify-end">
+                    <Link
+                      to="/login"
+                      className="text-xs text-white bg-amber-600/30 hover:bg-amber-600/50 px-3 py-1.5 rounded-lg border border-amber-500/40 transition font-medium"
+                    >
+                      Log In as Organizer &rarr;
+                    </Link>
+                  </div>
                 </div>
               ) : (
                 /* INVALID / REVOKED RESULT */
@@ -460,7 +620,7 @@ export default function ScannerPage() {
                     </div>
                     <div>
                       <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider bg-red-950 text-red-300 border border-red-800">
-                        {scanResult.outcome === 'REVOKED' ? 'REVOKED' : 'REJECTED'}
+                        {scanResult.statusCode} · REJECTED
                       </span>
                       <h3 className="font-display text-lg font-bold text-white mt-1.5">
                         Check-in Refused
@@ -479,14 +639,16 @@ export default function ScannerPage() {
                   <History className="w-4 h-4 text-zinc-400" />
                   Recent Gate Activity
                 </span>
-                <span className="text-[11px] font-mono text-zinc-500">This session</span>
+                <span className="text-[11px] font-mono text-zinc-500">Live feed</span>
               </div>
 
-              {auditLogs.length === 0 ? (
-                <p className="text-xs text-zinc-500 text-center py-6">No scans yet</p>
-              ) : (
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                  {auditLogs.map((log) => (
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                {scanAuditLogs.length === 0 ? (
+                  <p className="text-xs text-zinc-500 py-4 text-center">
+                    No gate scans recorded in this session.
+                  </p>
+                ) : (
+                  scanAuditLogs.map((log) => (
                     <div
                       key={log.id}
                       className="p-2.5 rounded-xl bg-black/30 border border-zinc-800/80 text-xs flex items-center justify-between gap-2"
@@ -501,13 +663,13 @@ export default function ScannerPage() {
                         )}
                         <div>
                           <span className="font-mono font-medium text-white mr-1.5">
-                            {log.token.slice(0, 12)}
+                            {log.orderNumber}
                           </span>
                           <span className="text-zinc-400">{log.message}</span>
                         </div>
                       </div>
 
-                      <span className="font-mono text-[10px] text-zinc-500 shrink-0">
+                        <span className="font-mono text-[10px] text-zinc-500 shrink-0">
                         {new Date(log.timestamp).toLocaleTimeString([], {
                           hour: '2-digit',
                           minute: '2-digit',
@@ -515,13 +677,15 @@ export default function ScannerPage() {
                         })}
                       </span>
                     </div>
-                  ))}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </div>
       </main>
+
+      <Footer />
     </div>
   );
 }
