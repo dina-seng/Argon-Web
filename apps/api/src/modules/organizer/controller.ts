@@ -5,15 +5,15 @@ import {
   updateTierQuota,
   getAttendees,
   listOrganizerEvents,
-} from './service';
-import { getOrganizerEvent } from '../events/service';
+} from './service.js';
+import { getOrganizerEvent } from '../events/service.js';
 import type {
   GetEventMetricsParams,
   UpdateTierQuotaParams,
   UpdateTierQuotaBody,
   GetAttendeesParams,
   GetAttendeesQuery,
-} from './schema';
+} from './schema.js';
 
 export async function getMetricsController(
   req: FastifyRequest,
@@ -92,7 +92,6 @@ export async function listOrganizerEventsController(
   const events = await listOrganizerEvents(req.server, userId, isAdmin);
   reply.send(events);
 }
-
 export async function listMyEventsController(req: FastifyRequest) {
   const userId = req.user.sub;
   const isAdmin = req.user.role === 'ADMIN';

@@ -8,7 +8,7 @@ import {
   issueStaffController,
   listOrganizerEventsController,
   getMyEventController,
-} from './controller';
+} from './controller.js';
 import {
   getEventMetricsParamsSchema,
   updateTierQuotaParamsSchema,
@@ -16,8 +16,7 @@ import {
   getAttendeesParamsSchema,
   getAttendeesQuerySchema,
   eventIdParamSchema,
-} from './schema';
-
+} from './schema.js';
 export async function organizerRoutes(app: FastifyInstance) {
   const organizerAuth = [app.authenticate, app.authorize([Role.ORGANIZER, Role.ADMIN])];
 

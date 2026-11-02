@@ -1,21 +1,21 @@
 /** modules/events/routes.ts */
 import type { FastifyInstance } from 'fastify';
 import { Role } from '@argon/shared';
-import { requireRole } from '../../lib/requireRole';
+import { requireRole } from '../../lib/requireRole.js';
 import {
   listEventsController,
   getEventController,
   createEventController,
   updateEventController,
   updateEventStatusController,
-} from './controller';
+} from './controller.js';
 import {
   createEventSchema,
   eventParamsSchema,
   listEventsQuerySchema,
   updateEventSchema,
   updateEventStatusSchema,
-} from './schema';
+} from './schema.js';
 
 export async function eventsRoutes(app: FastifyInstance) {
   app.get('/', { schema: { querystring: listEventsQuerySchema }, handler: listEventsController });

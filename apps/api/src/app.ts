@@ -5,24 +5,25 @@
 
 import Fastify from 'fastify';
 import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
-import { prismaPlugin } from './plugins/prisma';
-import { redisPlugin } from './plugins/redis';
-import { jwtPlugin } from './plugins/jwt';
-import { authorizePlugin } from './plugins/authorize';
-import { rateLimitPlugin } from './plugins/rateLimit';
-import { corsPlugin } from './plugins/cors';
-import { errorHandlerPlugin } from './plugins/errorHandler';
-import { auditLogPlugin } from './plugins/auditLog';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import { prismaPlugin } from './plugins/prisma.js';
+import { redisPlugin } from './plugins/redis.js';
+import { jwtPlugin } from './plugins/jwt.js';
+import { authorizePlugin } from './plugins/authorize.js';
+import { rateLimitPlugin } from './plugins/rateLimit.js';
+import { corsPlugin } from './plugins/cors.js';
+import { errorHandlerPlugin } from './plugins/errorHandler.js';
+import { auditLogPlugin } from './plugins/auditLog.js';
 
-import { authRoutes } from './modules/auth/routes';
-import { eventsRoutes } from './modules/events/routes';
-import { bookingsRoutes } from './modules/bookings/routes';
-import { paymentsRoutes } from './modules/payments/routes';
-import { ticketsRoutes } from './modules/tickets/routes';
-import { checkinRoutes } from './modules/checkin/routes';
-import { organizerRoutes } from './modules/organizer/routes';
-import { auditRoutes } from './modules/audit/routes';
-import { adminRoutes } from './modules/admin/routes';
+import { authRoutes } from './modules/auth/routes.js';
+import { eventsRoutes } from './modules/events/routes.js';
+import { bookingsRoutes } from './modules/bookings/routes.js';
+import { paymentsRoutes } from './modules/payments/routes.js';
+import { ticketsRoutes } from './modules/tickets/routes.js';
+import { checkinRoutes } from './modules/checkin/routes.js';
+import { organizerRoutes } from './modules/organizer/routes.js';
+import { auditRoutes } from './modules/audit/routes.js';
+import { adminRoutes } from './modules/admin/routes.js';
 
 export async function buildApp() {
   const app = Fastify({
@@ -59,4 +60,13 @@ export async function buildApp() {
   await app.register(adminRoutes, { prefix: '/api/v1/admin' });
 
   return app;
+}
+
+let vercelApp: ReturnType<typeof buildApp> | undefined;
+
+export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  vercelApp ??= buildApp();
+  const app = await vercelApp;
+  await app.ready();
+  app.routing(req, res);
 }
