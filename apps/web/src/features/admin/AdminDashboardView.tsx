@@ -160,9 +160,6 @@ export function AdminDashboardView({ onNavigateTab: _onNavigateTab }: AdminDashb
             <h1 className="text-2xl sm:text-3xl font-display font-black tracking-tight text-slate-900 dark:text-white">
               Platform Overview
             </h1>
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400">
-              PostgreSQL Verified
-            </span>
           </div>
           <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
             Ground-truth settlement data, active attendee accounts, and real-time node telemetry.

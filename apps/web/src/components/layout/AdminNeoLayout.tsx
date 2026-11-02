@@ -188,7 +188,7 @@ export function AdminNeoLayout() {
                       className={({ isActive }) =>
                         `flex items-center gap-3 rounded-2xl px-3.5 py-2.5 text-xs font-bold transition-all duration-200 ${
                           isActive
-                            ? 'bg-cyan-500/15 text-cyan-400 dark:text-cyan-300 border border-cyan-500/30 shadow-sm shadow-cyan-500/10'
+                            ? 'bg-[#FF5B22]/10 text-[#FF5B22] dark:text-[#FF6B35] border border-[#FF5B22]/25 shadow-sm shadow-[#FF5B22]/10'
                             : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                         }`
                       }
@@ -203,20 +203,8 @@ export function AdminNeoLayout() {
           </nav>
         </div>
 
-        {/* Bottom Section: Root Status Card & Profile */}
-        <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800/80">
-          {/* Superuser Card */}
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-black p-3.5 text-white shadow-sm border border-slate-700/60">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-400 font-bold">
-                ROOT PRIVILEGES
-              </span>
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            </div>
-            <div className="mt-1 font-extrabold text-xs">Full Platform Governance</div>
-            <div className="mt-0.5 text-[10px] text-slate-400">All overrides and audit trails enabled</div>
-          </div>
-
+        {/* Bottom Section: Profile */}
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80">
           {/* User Profile Pill & Logout */}
           <div className="flex items-center justify-between rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 p-2.5">
             <div className="flex items-center gap-2.5 min-w-0">
@@ -283,14 +271,8 @@ export function AdminNeoLayout() {
             </div>
           </div>
 
-          {/* Right: Theme Toggle & Upcoming Copilot Indicator */}
+          {/* Right: Theme Toggle */}
           <div className="flex items-center gap-3">
-            {/* Ops Copilot In Development Badge */}
-            <div className="hidden sm:inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131926]">
-              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-              <span>Ops Copilot: Upcoming</span>
-            </div>
-
             {/* Dark / Light Mode Switcher */}
             <button
               type="button"

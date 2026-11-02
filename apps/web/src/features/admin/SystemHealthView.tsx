@@ -105,14 +105,14 @@ export function SystemHealthView() {
             </span>
           </div>
           <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Real-time infrastructure health, database connection pool telemetry, and memory profile.
+            Live status for database, cache, runtime memory, and system services.
           </p>
         </div>
 
         <div className="flex items-center gap-3 self-start sm:self-auto">
           {lastCheckTime && (
             <span className="text-xs text-slate-400 font-mono hidden sm:inline">
-              Polled at {lastCheckTime}
+              Updated at {lastCheckTime}
             </span>
           )}
           <Button
@@ -130,7 +130,7 @@ export function SystemHealthView() {
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            <span className="font-semibold text-xs">Probe Nodes</span>
+            <span className="font-semibold text-xs">Refresh</span>
           </Button>
         </div>
       </div>
@@ -140,7 +140,7 @@ export function SystemHealthView() {
         <div className="flex items-center justify-between rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/20 px-4 py-3 text-sm text-rose-700 dark:text-rose-400">
           <span>{error}</span>
           <Button variant="secondary" size="sm" onClick={() => fetchHealth(true)}>
-            Retry Probe
+            Try Again
           </Button>
         </div>
       )}
@@ -149,7 +149,7 @@ export function SystemHealthView() {
       {isLoading && !health && (
         <div className="py-16 text-center text-slate-400">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#FF5B22] border-t-transparent mx-auto mb-2" />
-          <span className="text-xs font-mono">Probing infrastructure nodes...</span>
+          <span className="text-xs font-mono">Checking system health...</span>
         </div>
       )}
 
@@ -159,10 +159,10 @@ export function SystemHealthView() {
         <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-[#131926] p-5 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Relational DB
+              Database
             </span>
             <Badge
-              label={health?.database.status ?? 'CHECKING'}
+              label={health?.database.status === 'HEALTHY' ? 'ONLINE' : (health?.database.status ?? 'CHECKING')}
               variant={health?.database.status === 'HEALTHY' ? 'success' : 'error'}
             />
           </div>
@@ -170,15 +170,15 @@ export function SystemHealthView() {
             <div className="text-2xl font-black text-slate-900 dark:text-white font-display">
               {health ? `${health.database.latencyMs} ms` : '—'}
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Roundtrip Query Latency</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Response Time</div>
           </div>
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400 space-y-1">
             <div className="flex justify-between">
-              <span>Pool Status</span>
+              <span>Connection</span>
               <span className="font-semibold text-slate-800 dark:text-slate-200">Active</span>
             </div>
             <div className="flex justify-between">
-              <span>Provider</span>
+              <span>Engine</span>
               <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[140px]">
                 PostgreSQL 16
               </span>
@@ -190,10 +190,10 @@ export function SystemHealthView() {
         <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-[#131926] p-5 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Memory Cache
+              Cache
             </span>
             <Badge
-              label={health?.cache.status ?? 'CHECKING'}
+              label={health?.cache.status === 'HEALTHY' ? 'ONLINE' : (health?.cache.status ?? 'CHECKING')}
               variant={health?.cache.status === 'HEALTHY' ? 'success' : 'warning'}
             />
           </div>
@@ -201,11 +201,11 @@ export function SystemHealthView() {
             <div className="text-2xl font-black text-slate-900 dark:text-white font-display">
               {health ? `${health.cache.latencyMs} ms` : '—'}
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Ping Latency</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Response Time</div>
           </div>
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400 space-y-1">
             <div className="flex justify-between">
-              <span>Memory Footprint</span>
+              <span>Memory Used</span>
               <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
                 {health?.cache.usedMemory ?? 'N/A'}
               </span>
@@ -221,7 +221,7 @@ export function SystemHealthView() {
         <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-[#131926] p-5 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              API Runtime
+              API Server
             </span>
             <Badge label="NODE.JS" variant="default" />
           </div>
@@ -229,17 +229,17 @@ export function SystemHealthView() {
             <div className="text-2xl font-black text-slate-900 dark:text-white font-display">
               {health ? formatUptime(health.uptime) : '—'}
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Process Uptime</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Uptime</div>
           </div>
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400 space-y-1">
             <div className="flex justify-between">
-              <span>Version</span>
+              <span>Node Version</span>
               <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
                 {health?.nodeVersion ?? 'N/A'}
               </span>
             </div>
             <div className="flex justify-between">
-              <span>Platform</span>
+              <span>System</span>
               <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
                 {health?.platform} ({health?.arch})
               </span>
@@ -251,25 +251,25 @@ export function SystemHealthView() {
         <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-[#131926] p-5 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Memory Allocation
+              Memory Usage
             </span>
-            <Badge label="STABLE" variant="info" />
+            <Badge label="NORMAL" variant="info" />
           </div>
           <div>
             <div className="text-2xl font-black text-slate-900 dark:text-white font-display">
               {health ? `${health.memory.heapUsedMb} MB` : '—'}
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">V8 Heap In Use</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Heap In Use</div>
           </div>
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400 space-y-1">
             <div className="flex justify-between">
-              <span>Resident Set (RSS)</span>
+              <span>Total Memory (RSS)</span>
               <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
                 {health?.memory.rssMb} MB
               </span>
             </div>
             <div className="flex justify-between">
-              <span>Heap Allocated</span>
+              <span>Allocated Heap</span>
               <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
                 {health?.memory.heapTotalMb} MB
               </span>
@@ -278,24 +278,24 @@ export function SystemHealthView() {
         </div>
       </div>
 
-      {/* Database Entity Row Counts */}
+      {/* Database Record Counts */}
       <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-[#131926] p-6 shadow-sm space-y-4">
         <div>
           <h2 className="text-base font-bold text-slate-900 dark:text-white">
-            Relational Record Integrity & Row Counts
+            Database Records
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Real table row population across PostgreSQL primary keys.
+            Total records currently stored in the database.
           </p>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-2">
           {[
-            { label: 'Registered Users', count: health?.database.counts.users ?? 0 },
-            { label: 'Published Events', count: health?.database.counts.events ?? 0 },
-            { label: 'Settled Bookings', count: health?.database.counts.bookings ?? 0 },
-            { label: 'Issued Tickets', count: health?.database.counts.tickets ?? 0 },
-            { label: 'Security Audit Logs', count: health?.database.counts.auditLogs ?? 0 },
+            { label: 'Users', count: health?.database.counts.users ?? 0 },
+            { label: 'Events', count: health?.database.counts.events ?? 0 },
+            { label: 'Bookings', count: health?.database.counts.bookings ?? 0 },
+            { label: 'Tickets', count: health?.database.counts.tickets ?? 0 },
+            { label: 'Audit Logs', count: health?.database.counts.auditLogs ?? 0 },
           ].map((item) => (
             <div
               key={item.label}
@@ -310,49 +310,50 @@ export function SystemHealthView() {
         </div>
       </div>
 
-      {/* Service Health Directory Table */}
-      <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-[#131926] shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+      {/* Service Health Checklist */}
+      <div className="rounded-3xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-[#131926] p-6 shadow-sm space-y-4">
+        <div>
           <h2 className="text-base font-bold text-slate-900 dark:text-white">
-            Subsystem Health Checklist
+            Service Health
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Health state of critical platform services and daemon processes.
+            Live status and response times for core services.
           </p>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50/80 dark:bg-slate-900/40 border-b border-slate-100 dark:border-slate-800 text-xs font-semibold uppercase tracking-wider text-slate-400">
-              <tr>
-                <th className="px-6 py-3.5">Service Subsystem</th>
-                <th className="px-6 py-3.5">Operating Status</th>
-                <th className="px-6 py-3.5">Telemetry Metric</th>
-                <th className="px-6 py-3.5 text-right">Protocol</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {(health?.services ?? []).map((srv) => (
-                <tr key={srv.name} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                  <td className="px-6 py-4 font-bold text-slate-900 dark:text-white text-xs">
-                    {srv.name}
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge
-                      label={srv.status}
-                      variant={srv.status === 'HEALTHY' ? 'success' : 'warning'}
-                    />
-                  </td>
-                  <td className="px-6 py-4 text-xs font-mono text-slate-500 dark:text-slate-400">
-                    {srv.latencyMs} ms probe latency
-                  </td>
-                  <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400 text-right font-mono">
-                    TCP / Loopback
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          {(health?.services ?? []).map((srv) => {
+            const isHealthy = srv.status === 'HEALTHY' || srv.status === 'OPERATIONAL';
+            return (
+              <div
+                key={srv.name}
+                className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40 hover:border-slate-200 dark:hover:border-slate-700 transition-colors"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={`h-2.5 w-2.5 rounded-full shrink-0 ${
+                      isHealthy
+                        ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50'
+                        : 'bg-amber-500 shadow-sm shadow-amber-500/50'
+                    }`}
+                  />
+                  <div className="min-w-0">
+                    <div className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                      {srv.name}
+                    </div>
+                    <div className="text-[11px] text-slate-400 dark:text-slate-400 font-mono mt-0.5">
+                      {srv.latencyMs} ms response time
+                    </div>
+                  </div>
+                </div>
+
+                <Badge
+                  label={isHealthy ? 'Healthy' : srv.status}
+                  variant={isHealthy ? 'success' : 'warning'}
+                />
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
