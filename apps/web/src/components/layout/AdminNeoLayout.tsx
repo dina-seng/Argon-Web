@@ -27,6 +27,52 @@ export function AdminNeoLayout() {
   const [activeEventsCount, setActiveEventsCount] = useState<number>(0);
   const [totalOrdersCount, setTotalOrdersCount] = useState<number>(0);
 
+  // Seen state tracked in localStorage so badges disappear once viewed
+  const [seenEventsCount, setSeenEventsCount] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('argon_seen_events_count');
+      return saved !== null ? Number(saved) : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  const [seenOrdersCount, setSeenOrdersCount] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('argon_seen_orders_count');
+      return saved !== null ? Number(saved) : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  // When visiting /admin/events, mark current events as seen so badge clears
+  useEffect(() => {
+    if (location.pathname.startsWith('/admin/events') && activeEventsCount > 0) {
+      localStorage.setItem('argon_seen_events_count', String(activeEventsCount));
+      setSeenEventsCount(activeEventsCount);
+    }
+  }, [location.pathname, activeEventsCount]);
+
+  // When visiting /admin/bookings, mark current orders as seen so badge clears
+  useEffect(() => {
+    if (location.pathname.startsWith('/admin/bookings') && totalOrdersCount > 0) {
+      localStorage.setItem('argon_seen_orders_count', String(totalOrdersCount));
+      setSeenOrdersCount(totalOrdersCount);
+    }
+  }, [location.pathname, totalOrdersCount]);
+
+  // Compute unread count (only show if genuine new items exist and not on that page)
+  const unseenEventsCount =
+    !location.pathname.startsWith('/admin/events') && activeEventsCount > seenEventsCount
+      ? activeEventsCount - seenEventsCount
+      : 0;
+
+  const unseenOrdersCount =
+    !location.pathname.startsWith('/admin/bookings') && totalOrdersCount > seenOrdersCount
+      ? totalOrdersCount - seenOrdersCount
+      : 0;
+
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('argon_admin_theme');
@@ -132,7 +178,7 @@ export function AdminNeoLayout() {
         {
           label: 'Events',
           path: '/admin/events',
-          badgeCount: activeEventsCount,
+          badgeCount: unseenEventsCount,
           icon: (
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -142,7 +188,7 @@ export function AdminNeoLayout() {
         {
           label: 'Orders',
           path: '/admin/bookings',
-          badgeCount: totalOrdersCount,
+          badgeCount: unseenOrdersCount,
           icon: (
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
@@ -240,7 +286,16 @@ export function AdminNeoLayout() {
                       key={item.label}
                       to={item.path}
                       end={item.end}
-                      onClick={() => setMobileMenuOpen(false)}
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        if (item.path.startsWith('/admin/events')) {
+                          localStorage.setItem('argon_seen_events_count', String(activeEventsCount));
+                          setSeenEventsCount(activeEventsCount);
+                        } else if (item.path.startsWith('/admin/bookings')) {
+                          localStorage.setItem('argon_seen_orders_count', String(totalOrdersCount));
+                          setSeenOrdersCount(totalOrdersCount);
+                        }
+                      }}
                       className={({ isActive }) =>
                         `flex items-center justify-between rounded-2xl px-3.5 py-2.5 text-xs font-bold transition-all duration-200 ${
                           isActive

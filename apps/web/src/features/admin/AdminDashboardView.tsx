@@ -201,14 +201,16 @@ export function AdminDashboardView({ onNavigateTab: _onNavigateTab }: AdminDashb
       )}
 
       {/* ==================================================================== */}
-      {/* 2. FOUR HERO METRIC CARDS (Zero Mock Data, Real Metrics Only)        */}
+      {/* 2. FOUR HERO METRIC CARDS (Clean, Contextual, Zero Meaningless Graphs) */}
       {/* ==================================================================== */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         {/* Card 1: Gross Revenue */}
         <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#131926] p-5 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex flex-col justify-between group">
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-400 dark:text-slate-400">Gross Revenue</span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Gross Revenue
+              </span>
               <Link
                 to="/admin/bookings"
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0B0F17] dark:bg-slate-800 text-white shadow-sm transition-colors group-hover:bg-[#FF5B22]"
@@ -220,41 +222,21 @@ export function AdminDashboardView({ onNavigateTab: _onNavigateTab }: AdminDashb
               </Link>
             </div>
 
-            <div className="mt-2 text-2xl sm:text-3xl font-display font-bold text-slate-900 dark:text-white tracking-tight">
+            <div className="mt-3 text-2xl sm:text-3xl font-display font-bold text-slate-900 dark:text-white tracking-tight">
               {isLoading && !metrics ? '—' : formatCurrency(metrics?.grossRevenue ?? 0)}
             </div>
 
             <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              {metrics?.totalTicketsSold ? `${metrics.totalTicketsSold} tickets sold` : 'No transactions recorded'}
+              Total platform earnings settled
             </div>
           </div>
 
-          {/* Dotted Sparkline Curve */}
-          <div className="mt-4 pt-1">
-            <svg viewBox="0 0 160 40" className="w-full h-9 overflow-visible">
-              {[10, 30, 50, 70, 90, 110, 130, 150].map((x) => (
-                <line
-                  key={x}
-                  x1={x}
-                  y1={metrics?.grossRevenue ? 16 : 30}
-                  x2={x}
-                  y2={36}
-                  stroke="currentColor"
-                  className="text-slate-200 dark:text-slate-800"
-                  strokeDasharray="2 2"
-                  strokeWidth="1.2"
-                />
-              ))}
-              <path
-                d={metrics?.grossRevenue ? 'M 5,30 Q 35,28 60,18 T 100,22 T 130,12 T 155,16' : 'M 5,34 L 155,34'}
-                fill="none"
-                stroke="#0F172A"
-                className="dark:stroke-slate-300 transition-all duration-500"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-              <circle cx="155" cy={metrics?.grossRevenue ? 16 : 34} r="3" fill="#0F172A" className="dark:fill-white" />
-            </svg>
+          <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
+            <span className="text-slate-500 dark:text-slate-400">Settlement Status</span>
+            <span className="flex items-center gap-1.5 font-semibold text-emerald-600 dark:text-emerald-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <span>{metrics?.grossRevenue ? 'Reconciled' : 'Awaiting checkouts'}</span>
+            </span>
           </div>
         </div>
 
@@ -262,7 +244,9 @@ export function AdminDashboardView({ onNavigateTab: _onNavigateTab }: AdminDashb
         <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#131926] p-5 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex flex-col justify-between group">
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-400 dark:text-slate-400">Active Events</span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Active Events
+              </span>
               <Link
                 to="/admin/events"
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0B0F17] dark:bg-slate-800 text-white shadow-sm transition-colors group-hover:bg-[#FF5B22]"
@@ -274,41 +258,21 @@ export function AdminDashboardView({ onNavigateTab: _onNavigateTab }: AdminDashb
               </Link>
             </div>
 
-            <div className="mt-2 text-2xl sm:text-3xl font-display font-bold text-slate-900 dark:text-white tracking-tight">
+            <div className="mt-3 text-2xl sm:text-3xl font-display font-bold text-slate-900 dark:text-white tracking-tight">
               {isLoading && !metrics ? '—' : formatNumber(metrics?.activeEventsCount ?? 0)}
             </div>
 
             <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Published in catalog
+              Events open for bookings
             </div>
           </div>
 
-          {/* Dotted Sparkline Curve (Mint Teal) */}
-          <div className="mt-4 pt-1">
-            <svg viewBox="0 0 160 40" className="w-full h-9 overflow-visible">
-              {[10, 30, 50, 70, 90, 110, 130, 150].map((x) => (
-                <line
-                  key={x}
-                  x1={x}
-                  y1={metrics?.activeEventsCount ? 18 : 30}
-                  x2={x}
-                  y2={36}
-                  stroke="currentColor"
-                  className="text-slate-200 dark:text-slate-800"
-                  strokeDasharray="2 2"
-                  strokeWidth="1.2"
-                />
-              ))}
-              <path
-                d={metrics?.activeEventsCount ? 'M 5,28 Q 30,26 60,20 T 100,24 T 130,14 T 155,12' : 'M 5,34 L 155,34'}
-                fill="none"
-                stroke="#10B981"
-                strokeWidth="2"
-                strokeLinecap="round"
-                className="transition-all duration-500"
-              />
-              <circle cx="155" cy={metrics?.activeEventsCount ? 12 : 34} r="3" fill="#10B981" />
-            </svg>
+          <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
+            <span className="text-slate-500 dark:text-slate-400">Catalog State</span>
+            <span className="flex items-center gap-1.5 font-semibold text-emerald-600 dark:text-emerald-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{metrics?.activeEventsCount ? 'Live on Marketplace' : 'No active events'}</span>
+            </span>
           </div>
         </div>
 
@@ -316,7 +280,9 @@ export function AdminDashboardView({ onNavigateTab: _onNavigateTab }: AdminDashb
         <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#131926] p-5 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex flex-col justify-between group">
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-400 dark:text-slate-400">Tickets Issued</span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Tickets Issued
+              </span>
               <Link
                 to="/admin/bookings"
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0B0F17] dark:bg-slate-800 text-white shadow-sm transition-colors group-hover:bg-[#FF5B22]"
@@ -328,41 +294,32 @@ export function AdminDashboardView({ onNavigateTab: _onNavigateTab }: AdminDashb
               </Link>
             </div>
 
-            <div className="mt-2 text-2xl sm:text-3xl font-display font-bold text-slate-900 dark:text-white tracking-tight">
+            <div className="mt-3 text-2xl sm:text-3xl font-display font-bold text-slate-900 dark:text-white tracking-tight">
               {isLoading && !metrics ? '—' : formatNumber(metrics?.totalTicketsSold ?? 0)}
             </div>
 
             <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              {metrics?.doorCheckInCount ?? 0} door check-ins verified
+              Total attendee tickets sold
             </div>
           </div>
 
-          {/* Dotted Sparkline Curve (Tangerine) */}
-          <div className="mt-4 pt-1">
-            <svg viewBox="0 0 160 40" className="w-full h-9 overflow-visible">
-              {[10, 30, 50, 70, 90, 110, 130, 150].map((x) => (
-                <line
-                  key={x}
-                  x1={x}
-                  y1={metrics?.totalTicketsSold ? 20 : 30}
-                  x2={x}
-                  y2={36}
-                  stroke="currentColor"
-                  className="text-slate-200 dark:text-slate-800"
-                  strokeDasharray="2 2"
-                  strokeWidth="1.2"
-                />
-              ))}
-              <path
-                d={metrics?.totalTicketsSold ? 'M 5,30 Q 30,26 60,18 T 100,24 T 130,12 T 155,16' : 'M 5,34 L 155,34'}
-                fill="none"
-                stroke="#FF5B22"
-                strokeWidth="2"
-                strokeLinecap="round"
-                className="transition-all duration-500"
+          <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800/80 space-y-2 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500 dark:text-slate-400">Door Check-ins</span>
+              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                {metrics?.doorCheckInCount ?? 0} / {metrics?.totalTicketsSold ?? 0}
+              </span>
+            </div>
+            <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-[#FF5B22] transition-all duration-500"
+                style={{
+                  width: metrics?.totalTicketsSold
+                    ? `${Math.min(100, Math.round(((metrics.doorCheckInCount || 0) / metrics.totalTicketsSold) * 100))}%`
+                    : '0%',
+                }}
               />
-              <circle cx="155" cy={metrics?.totalTicketsSold ? 16 : 34} r="3" fill="#FF5B22" />
-            </svg>
+            </div>
           </div>
         </div>
 
@@ -370,7 +327,9 @@ export function AdminDashboardView({ onNavigateTab: _onNavigateTab }: AdminDashb
         <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#131926] p-5 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex flex-col justify-between group">
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-400 dark:text-slate-400">Platform Accounts</span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Platform Accounts
+              </span>
               <Link
                 to="/admin/users"
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0B0F17] dark:bg-slate-800 text-white shadow-sm transition-colors group-hover:bg-[#FF5B22]"
@@ -382,41 +341,38 @@ export function AdminDashboardView({ onNavigateTab: _onNavigateTab }: AdminDashb
               </Link>
             </div>
 
-            <div className="mt-2 text-2xl sm:text-3xl font-display font-bold text-slate-900 dark:text-white tracking-tight">
+            <div className="mt-3 text-2xl sm:text-3xl font-display font-bold text-slate-900 dark:text-white tracking-tight">
               {isLoading && !metrics ? '—' : formatNumber(totalUsers)}
             </div>
 
             <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              {userCounts.CUSTOMER} customers · {userCounts.ORGANIZER} organizers
+              Registered platform users
             </div>
           </div>
 
-          {/* Dotted Sparkline Curve (Blue) */}
-          <div className="mt-4 pt-1">
-            <svg viewBox="0 0 160 40" className="w-full h-9 overflow-visible">
-              {[10, 30, 50, 70, 90, 110, 130, 150].map((x) => (
-                <line
-                  key={x}
-                  x1={x}
-                  y1={totalUsers > 0 ? 18 : 30}
-                  x2={x}
-                  y2={36}
-                  stroke="currentColor"
-                  className="text-slate-200 dark:text-slate-800"
-                  strokeDasharray="2 2"
-                  strokeWidth="1.2"
-                />
-              ))}
-              <path
-                d={totalUsers > 0 ? 'M 5,28 Q 28,30 55,22 T 95,26 T 130,14 T 155,10' : 'M 5,34 L 155,34'}
-                fill="none"
-                stroke="#3B82F6"
-                strokeWidth="2"
-                strokeLinecap="round"
-                className="transition-all duration-500"
+          <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800/80 space-y-2 text-xs">
+            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+              <span>{userCounts.CUSTOMER} Customers</span>
+              <span>{userCounts.ORGANIZER} Organizers</span>
+              <span>{userCounts.ADMIN} Admins</span>
+            </div>
+            <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden flex gap-0.5">
+              <div
+                className="h-full bg-[#FF5B22] rounded-l-full transition-all duration-500"
+                style={{ width: `${customerPct}%` }}
+                title="Customers"
               />
-              <circle cx="155" cy={totalUsers > 0 ? 10 : 34} r="3" fill="#3B82F6" />
-            </svg>
+              <div
+                className="h-full bg-[#06B6D4] transition-all duration-500"
+                style={{ width: `${organizerPct}%` }}
+                title="Organizers"
+              />
+              <div
+                className="h-full bg-[#818CF8] rounded-r-full transition-all duration-500"
+                style={{ width: `${adminPct}%` }}
+                title="Admins"
+              />
+            </div>
           </div>
         </div>
       </div>
