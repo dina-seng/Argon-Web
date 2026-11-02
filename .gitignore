@@ -57,3 +57,7 @@ coverage/
 # Git worktrees
 .worktrees/
 .worktree/
+
+# ArchDoc Architecture Documentation
+docs/archdoc/
+
