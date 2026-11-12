@@ -1,66 +1,90 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+/**
+ * features/booking/CheckoutPage.tsx
+ * Matches design 03-Checkout-tickets-hold.
+ */
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import type { PaginatedResponse, PublicEvent, PublicEventDetail } from '@argon/shared';
 import { useAuth } from '../../hooks/useAuth';
-import { Header } from '../../components/layout/Header';
-import { Footer } from '../../components/layout/Footer';
 import { api, ApiRequestError } from '../../lib/api';
-import type { PublicEventDetail } from '@argon/shared';
-import {
-  Calendar,
-  MapPin,
-  Clock,
-  ShieldCheck,
-  ArrowLeft,
-  ArrowRight,
-  Plus,
-  Minus,
-  Loader2
-} from 'lucide-react';
+import { countdown, mediumDate, money, nameFromEmail, rememberHold, SERVICE_FEE } from '../../lib/publicFormat';
+import { Arrow, BackLink, CheckoutHeader } from '../../components/public/Brand';
+
+const MAX_PER_BOOKING = 10;
+
+/** The list endpoint has no tiers, so a bare tier link is resolved through each event's detail. */
+async function findEventByTier(tierId: string): Promise<PublicEventDetail | null> {
+  const { data } = await api.get<PaginatedResponse<PublicEvent>>('/events?pageSize=50');
+  for (const summary of data) {
+    const detail = await api.get<PublicEventDetail>(`/events/${summary.id}`);
+    if (detail.tiers.some((t) => t.id === tierId)) return detail;
+  }
+  return null;
+}
 
 export default function CheckoutPage() {
   const { tierId } = useParams<{ tierId?: string }>();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [quantity, setQuantity] = useState(1);
+  const passed = location.state as { event?: PublicEventDetail; quantity?: number } | null;
+  const eventParam = searchParams.get('event');
+  const [eventDetail, setEventDetail] = useState<PublicEventDetail | null>(passed?.event ?? null);
+  const [eventLoading, setEventLoading] = useState(!passed?.event);
+  const [quantity, setQuantity] = useState(() => {
+    const wanted = passed?.quantity ?? Number(searchParams.get('qty') ?? 1);
+    return Number.isInteger(wanted) ? Math.min(MAX_PER_BOOKING, Math.max(1, wanted)) : 1;
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [eventDetail, setEventDetail] = useState<PublicEventDetail | null>(null);
-  const [eventLoading, setEventLoading] = useState(true);
+  const [secondsRemaining, setSecondsRemaining] = useState(600);
 
-  // Look up the event that contains this tier
   useEffect(() => {
-    if (!tierId) return;
+    const timer = setInterval(() => setSecondsRemaining((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (eventDetail || !tierId) return;
     let cancelled = false;
-    setEventLoading(true);
-    // The API doesn't have a /tiers/:id endpoint, so we fetch the events list
-    // and find the event matching the tier. For direct links we rely on navigation state.
-    api.get<{ data: PublicEventDetail[] }>('/events?pageSize=50')
-      .then(async (res) => {
-        if (cancelled) return;
-        const match = res.data.find((e) => e.tiers?.some((t) => t.id === tierId));
-        if (match) {
-          const detail = await api.get<PublicEventDetail>(`/events/${match.id}`);
-          if (!cancelled) setEventDetail(detail);
-        }
-      })
-      .catch(() => { /* non-fatal – tier info shows as minimal */ })
+    (eventParam ? api.get<PublicEventDetail>(`/events/${eventParam}`) : findEventByTier(tierId))
+      .then((detail) => { if (!cancelled) setEventDetail(detail); })
+      .catch(() => { if (!cancelled) setApiError("Couldn't load this ticket. Go back to the event and try again."); })
       .finally(() => { if (!cancelled) setEventLoading(false); });
     return () => { cancelled = true; };
-  }, [tierId]);
+  }, [eventDetail, eventParam, tierId]);
 
   const tier = eventDetail?.tiers.find((t) => t.id === tierId) ?? null;
+  const isSoldOut = Boolean(tier && tier.remaining <= 0);
+  const maxQuantity = tier ? Math.min(MAX_PER_BOOKING, Math.max(0, tier.remaining)) : MAX_PER_BOOKING;
 
-  const subtotal = (tier?.price ?? 0) * quantity;
-  const serviceFee = 1.0;
-  const total = subtotal + serviceFee;
+  useEffect(() => {
+    if (tier && tier.remaining > 0 && quantity > tier.remaining) {
+      setQuantity(tier.remaining);
+    }
+  }, [tier, quantity]);
 
-  const handleContinueToPayment = async () => {
+  const subtotal = (tier?.price ?? 0) * (isSoldOut ? 0 : quantity);
+  const total = isSoldOut ? 0 : subtotal + SERVICE_FEE;
+
+  const handleContinue = async () => {
+    if (!tier || !eventDetail) return;
     setIsLoading(true);
     setApiError(null);
     try {
-      interface BookingResponse { id: string; status: string; expiresAt: string; quantity: number; tierId: string; eventId: string; }
-      const booking = await api.post<BookingResponse>('/bookings', { tierId, quantity });
+      interface BookingResponse { id: string; status: string; expiresAt: string; quantity: number; tierId: string; eventId: string }
+      const booking = await api.post<BookingResponse>('/bookings', { eventId: eventDetail.id, tierId, quantity });
+      if (user) {
+        rememberHold(user.sub, {
+          id: booking.id,
+          eventTitle: eventDetail.title,
+          eventStartsAt: eventDetail.startsAt,
+          tierName: tier.name,
+          expiresAt: booking.expiresAt,
+        });
+      }
       navigate(`/payment/${booking.id}`, { state: { booking, tier, event: eventDetail } });
     } catch (err) {
       setApiError(err instanceof ApiRequestError ? err.message : 'Failed to create booking. Please try again.');
@@ -69,138 +93,97 @@ export default function CheckoutPage() {
     }
   };
 
+  const fieldLabel = 'mb-[6px] block text-[13px] font-extrabold uppercase leading-[18px] tracking-[0.04em] text-peach';
+  const fieldInput = 'ag-input h-[50px] !bg-ink !border-white/40 !px-[14px] text-[16px]';
+  const passCopy = quantity === 1 ? 'Your QR pass will' : quantity === 2 ? 'Both QR passes will' : `All ${quantity} QR passes will`;
+
   return (
-    <div className="min-h-screen bg-[#090a10] text-zinc-100 flex flex-col font-sans">
-      <Header />
+    <div className="flex min-h-screen flex-col bg-ink text-white">
+      <CheckoutHeader step={1} />
 
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        {/* Step Indicator Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#2a1d4f] text-white border border-purple-500 text-xs font-semibold shadow-[0_0_12px_rgba(120,87,255,0.25)]">
-            <span>01 Tickets</span>
-          </div>
-          <div className="w-8 sm:w-12 h-px bg-zinc-800" />
-          <div className="text-zinc-500 text-xs font-medium px-2 py-1"><span>02 Payment</span></div>
-          <div className="w-8 sm:w-12 h-px bg-zinc-800" />
-          <div className="text-zinc-500 text-xs font-medium px-2 py-1"><span>03 Your ticket</span></div>
+      <div className="bg-white">
+        <div className="ag-wrap flex min-h-[68px] items-center justify-between gap-4 py-2 text-ink">
+          <p className="text-[15px] font-bold tracking-[-0.03em]">
+            <span className="font-black text-blood">10-MINUTE HOLD:</span>{' '}
+            reserve your admission before seats go back to the pool.
+          </p>
+          <span role="timer" className="text-[32px] font-black leading-none tracking-[-0.01em] text-blood">{countdown(secondsRemaining)}</span>
         </div>
+      </div>
 
-        <div className="mb-4">
-          <Link to="/" className="inline-flex items-center gap-2 text-xs font-medium text-zinc-400 hover:text-white transition-colors">
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back to events</span>
-          </Link>
-        </div>
+      <main className="ag-wrap flex-1 pb-16 pt-[50px]">
+        <BackLink to={eventDetail ? `/events/${eventDetail.id}` : '/'}>Back to event</BackLink>
+        <h1 className="ag-display mt-[21px] text-[clamp(44px,5.6vw,72px)]">Select tickets</h1>
 
-        <div className="mb-8">
-          <h1 className="font-display text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Select Tickets</h1>
-          <p className="mt-2 text-zinc-400 text-sm sm:text-base">Reserve your admission before seats are released back to the pool.</p>
-        </div>
-
-        {eventLoading ? (
-          <div className="flex items-center justify-center py-24">
-            <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-            {/* Left Column */}
-            <div className="md:col-span-7 space-y-6">
-              <div className="bg-[#12131b] border border-white/[0.08] rounded-2xl p-6 shadow-xl">
-                <div className="flex items-start gap-4">
-                  <div className="w-24 h-20 rounded-xl overflow-hidden shrink-0 bg-zinc-900 border border-white/10 flex items-center justify-center text-zinc-600 text-xs">
-                    {eventDetail?.title?.slice(0, 2).toUpperCase() ?? '??'}
-                  </div>
-                  <div>
-                    <h2 className="font-display text-xl font-bold text-white">{eventDetail?.title ?? 'Event'}</h2>
-                    <div className="mt-2 space-y-1 text-xs text-zinc-400">
-                      <p className="flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-zinc-500" />
-                        {eventDetail ? new Date(eventDetail.startsAt).toLocaleString() : '—'}
-                      </p>
-                      <p className="flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-zinc-500" />
-                        {eventDetail?.venue ?? '—'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 pt-5 border-t border-zinc-800/80">
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-[#181926] border border-purple-900/40">
-                    <div>
-                      <h3 className="text-sm font-semibold text-white">{tier?.name ?? 'General Admission'}</h3>
-                      <p className="text-xs text-zinc-400 mt-0.5">${(tier?.price ?? 0).toFixed(2)} USD per person</p>
-                    </div>
-                    <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-700/80 rounded-xl p-1">
-                      <button onClick={() => setQuantity(Math.max(1, quantity - 1))} disabled={quantity <= 1}
-                        className="w-7 h-7 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white flex items-center justify-center transition">
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="font-mono text-sm font-bold w-5 text-center text-white">{quantity}</span>
-                      <button onClick={() => setQuantity(Math.min(10, quantity + 1))} disabled={quantity >= 10}
-                        className="w-7 h-7 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white flex items-center justify-center transition">
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-5 p-4 rounded-xl bg-zinc-900/50 border border-zinc-800/80 text-xs text-zinc-400">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 block mb-1">Ticket Holder</span>
-                  <p className="text-white font-medium">{user?.email?.split('@')[0] ?? 'Guest'}</p>
-                  <p className="font-mono text-zinc-400">{user?.email ?? ''}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-purple-950/20 border border-purple-900/40 text-xs text-purple-300">
-                <Clock className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+        <div className="mt-[33px] grid grid-cols-1 items-start gap-[32px] lg:grid-cols-[848px_360px]">
+          <div className="flex min-w-0 flex-col gap-[24px]">
+            <section className="flex min-h-[120px] flex-wrap items-center justify-between gap-4 border-2 border-white px-[24px] py-3">
+              {eventLoading ? (
+                <div className="h-[60px] w-1/2 animate-pulse bg-ink-raised" />
+              ) : (
                 <div>
-                  <span className="font-semibold text-white">10-Minute Hold Reservation:</span>
-                  <p className="mt-0.5 text-zinc-400">Once you proceed, your tickets will be locked for 10 minutes while you complete payment.</p>
+                  <p className="ag-label text-peach">{tier?.name ?? 'Ticket unavailable'}</p>
+                  <p className="text-[23px] font-black leading-[30px] tracking-[-0.03em]">{money(tier?.price ?? 0)} USD per person</p>
+                  {eventDetail && (
+                    <p className="text-[14px] leading-[20px] text-peach-soft">
+                      {eventDetail.title} · {mediumDate(eventDetail.startsAt)} · {eventDetail.venue}
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="flex h-[52px] w-[148px] items-center justify-between border-2 border-white text-[20px] font-black">
+                <button type="button" aria-label="Fewer tickets" disabled={quantity <= 1 || isSoldOut} onClick={() => setQuantity(quantity - 1)} className="h-full w-[48px] disabled:opacity-40">−</button>
+                <span aria-live="polite">{isSoldOut ? 0 : quantity}</span>
+                <button type="button" aria-label="More tickets" disabled={quantity >= maxQuantity || isSoldOut} onClick={() => setQuantity(quantity + 1)} className="h-full w-[48px] disabled:opacity-40">+</button>
+              </div>
+            </section>
+
+            <section className="bg-ink-raised px-[28px] py-[26px]">
+              <h2 className="ag-display text-[25px] leading-[32px] tracking-[-0.03em]">Ticket holder</h2>
+              <div className="mt-[15px] grid grid-cols-1 gap-[16px] sm:grid-cols-2">
+                <div>
+                  <label htmlFor="holder-name" className={fieldLabel}>Full name</label>
+                  <input id="holder-name" readOnly value={nameFromEmail(user?.email)} className={fieldInput} />
+                </div>
+                <div>
+                  <label htmlFor="holder-email" className={fieldLabel}>Email</label>
+                  <input id="holder-email" type="email" readOnly value={user?.email ?? ''} className={fieldInput} />
                 </div>
               </div>
-            </div>
-
-            {/* Right Column: Order Summary */}
-            <div className="md:col-span-5 space-y-5">
-              <div className="bg-[#12131b] border border-white/[0.08] rounded-2xl p-6 shadow-xl">
-                <h3 className="text-base font-semibold text-white pb-3 border-b border-zinc-800/80">Order Summary</h3>
-                <div className="mt-4 space-y-2.5 text-xs text-zinc-300">
-                  <div className="flex justify-between">
-                    <span>{tier?.name ?? 'Ticket'} × {quantity}</span>
-                    <span className="font-medium">${subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Service fee</span>
-                    <span className="font-medium">${serviceFee.toFixed(2)}</span>
-                  </div>
-                </div>
-                <div className="mt-4 pt-4 border-t border-zinc-800/80 flex items-baseline justify-between">
-                  <span className="text-xs text-zinc-300 font-medium">Order total · USD</span>
-                  <span className="text-2xl font-black text-orange-500 font-sans tracking-tight">${total.toFixed(2)}</span>
-                </div>
-
-                <button onClick={handleContinueToPayment} disabled={isLoading || !tier}
-                  className="w-full mt-6 py-3.5 px-4 rounded-xl bg-[#7857ff] hover:bg-[#6b47ff] text-white font-semibold text-sm flex items-center justify-center gap-2 transition shadow-lg shadow-purple-950/40 disabled:opacity-60 disabled:cursor-not-allowed">
-                  <span>{isLoading ? 'Reserving…' : 'Continue to Payment'}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-
-                {apiError && <p className="mt-2 text-sm text-red-400">{apiError}</p>}
-
-                <div className="mt-4 text-center">
-                  <p className="text-[11px] text-zinc-500 flex items-center justify-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                    Instant digital issuance upon payment
-                  </p>
-                </div>
-              </div>
-            </div>
+              <p className="mt-[17px] text-[14px] leading-[20px] text-peach-soft">
+                {passCopy} be sent to this account. You can view them any time in My tickets.
+              </p>
+            </section>
           </div>
-        )}
-      </main>
 
-      <Footer />
+          <aside className="bg-white text-ink">
+            <h2 className="flex h-[66px] items-center bg-flame px-[24px] text-[22px] font-black uppercase tracking-[-0.02em] text-white">Order summary</h2>
+            <div className="px-[24px] pb-[24px]">
+              <div className="flex h-[56px] items-center justify-between border-b border-ink/15 pt-[6px] text-[16px]">
+                <span>{quantity} × {tier?.name ?? 'Ticket'}</span>
+                <span className="font-extrabold tracking-[-0.02em]">{money(subtotal)}</span>
+              </div>
+              <div className="flex h-[49px] items-center justify-between border-b border-ink/15 text-[16px]">
+                <span>Service fee</span>
+                <span className="font-extrabold tracking-[-0.02em]">{money(SERVICE_FEE)}</span>
+              </div>
+              <div className="flex h-[77px] items-end justify-between pb-[17px]">
+                <span className="text-[13px] font-extrabold uppercase tracking-[0.06em]">Order total · USD</span>
+                <span className="text-[38px] font-black leading-[40px] tracking-[-0.04em]">{money(total)}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleContinue}
+                disabled={isLoading || !tier || isSoldOut || quantity <= 0}
+                className="flex h-[56px] w-full items-center justify-center bg-ink text-[16px] font-black uppercase tracking-[0.03em] text-white transition hover:bg-blood disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isLoading ? 'Reserving…' : isSoldOut ? 'Sold out' : <span>Continue to payment <Arrow /></span>}
+              </button>
+              {apiError && <p role="alert" className="mt-3 text-center text-sm font-semibold text-blood">{apiError}</p>}
+            </div>
+          </aside>
+        </div>
+      </main>
     </div>
   );
 }
