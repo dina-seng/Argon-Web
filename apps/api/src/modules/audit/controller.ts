@@ -1,6 +1,6 @@
 /** modules/audit/controller.ts */
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { listAuditLogs, type ListAuditLogsQuery } from './service';
+import { listAuditLogs, type ListAuditLogsQuery } from './service.js';
 import { Role } from '@argon/shared';
 
 export async function listAuditLogsController(req: FastifyRequest<{ Querystring: { entityId?: string; entity?: string; page?: string; pageSize?: string } }>, reply: FastifyReply): Promise<void> {

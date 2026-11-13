@@ -1,6 +1,6 @@
 /** modules/payments/controller.ts */
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { handlePaymentWebhook, type WebhookPayload } from './service';
+import { handlePaymentWebhook, type WebhookPayload } from './service.js';
 
 export async function webhookController(req: FastifyRequest, reply: FastifyReply): Promise<void> {
   const payload = req.body as WebhookPayload;

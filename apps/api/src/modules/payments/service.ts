@@ -10,9 +10,9 @@
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import { env } from '../../config/env';
+import { env } from '../../config/env.js';
 import { BookingStatus } from '@argon/shared';
-import { mintTickets } from '../tickets/service';
+import { mintTickets } from '../tickets/service.js';
 
 export interface WebhookPayload {
   event: string;
