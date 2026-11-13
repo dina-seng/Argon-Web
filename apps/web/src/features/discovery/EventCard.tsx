@@ -1,70 +1,67 @@
 /**
- * features/discovery/EventCard.tsx – one event in the customer feed grid.
+ * features/discovery/EventCard.tsx
+ * Event card: what's on, when, where, how much, and a clear way to book.
+ * Shows the event's own photo, or a plain date panel when it has none.
  */
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { PublicEvent } from '@argon/shared';
-import { CATEGORY_LABELS, formatEventDateShort, formatPrice } from '@/lib/eventLabels';
-import { Badge } from '@/components/ui/Badge';
-import { Icon } from '@/components/ui/Icon';
-import { EventCover } from '@/components/EventCover';
-
-/** "Sold out" / "Few left" when tickets are scarce, otherwise null. */
-export function availabilityLabel(event: Pick<PublicEvent, 'ticketsRemaining' | 'capacity'>): string | null {
-  if (event.ticketsRemaining === 0) return 'Sold out';
-  if (event.ticketsRemaining <= Math.max(5, event.capacity * 0.1)) return 'Few left';
-  return null;
-}
-
-export function priceLabel(event: Pick<PublicEvent, 'minPrice'>): string {
-  return event.minPrice === 0 ? 'Free' : `From ${formatPrice(event.minPrice)}`;
-}
+import { CATEGORY_LABELS } from '@/lib/eventLabels';
+import { clockTime, dayMonth, mediumDate, shortMoney, weekdayShort } from '@/lib/publicFormat';
+import { Arrow } from '../../components/public/Brand';
+import { EMBER } from '../../components/public/PosterArt';
 
 export function EventCard({ event }: { event: PublicEvent }) {
-  const availability = availabilityLabel(event);
+  const [photoFailed, setPhotoFailed] = useState(false);
+  useEffect(() => setPhotoFailed(false), [event.coverImageUrl]);
+
   const soldOut = event.ticketsRemaining === 0;
+  const sellingFast = !soldOut && event.ticketsRemaining <= Math.max(5, event.capacity * 0.1);
+  const photo = photoFailed ? null : event.coverImageUrl;
+  const { day, month } = dayMonth(event.startsAt);
+  const price = event.minPrice === 0 ? 'Free' : `From ${shortMoney(event.minPrice)}`;
 
   return (
     <Link
       to={`/events/${event.id}`}
-      className="group flex h-full flex-col overflow-hidden rounded-lg border border-line bg-surface-card transition-colors hover:border-line-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      className="group flex h-full flex-col overflow-hidden bg-white text-ink transition-transform duration-150 hover:-translate-y-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
     >
-      <EventCover category={event.category} coverImageUrl={event.coverImageUrl} className="h-[184px] shrink-0">
-        <div className="absolute bottom-4 left-4">
-          <Badge label={CATEGORY_LABELS[event.category]} />
-        </div>
-        {availability && (
-          <div className="absolute right-4 top-4">
-            <Badge label={availability} />
+      <div className="relative h-[210px] shrink-0 overflow-hidden" style={photo ? undefined : { background: EMBER }}>
+        {photo ? (
+          <img
+            src={photo}
+            alt={event.title}
+            loading="lazy"
+            onError={() => setPhotoFailed(true)}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex h-full flex-col justify-end p-[20px] text-cream">
+            <p className="text-[14px] font-extrabold leading-[18px] tracking-[0.08em]">{weekdayShort(event.startsAt)}</p>
+            <p className="ag-display text-[72px] leading-[64px]">{day}</p>
+            <p className="ag-display text-[36px] leading-[34px]">{month}</p>
           </div>
         )}
-      </EventCover>
-
-      <div className="flex flex-1 flex-col gap-4 p-6">
-        <h2 className="line-clamp-2 text-xl font-bold leading-[1.25] text-fg">{event.title}</h2>
-
-        <div className="flex flex-col gap-2 text-sm leading-[1.5] text-fg-muted">
-          <p className="flex items-center gap-3">
-            <Icon name="calendar" />
-            <span className="truncate">{formatEventDateShort(event.startsAt)}</span>
-          </p>
-          <p className="flex items-center gap-3">
-            <Icon name="mapPin" />
-            <span className="truncate">{event.venue}</span>
-          </p>
-        </div>
-
-        <div className="mt-auto h-px bg-line" />
-
-        <div className="flex items-center justify-between">
-          <Badge label={priceLabel(event)} variant="price" />
-          <span
-            className={`inline-flex items-center gap-1 text-sm font-semibold leading-[17px] ${
-              soldOut ? 'text-fg-muted' : 'text-accent group-hover:underline'
-            }`}
-          >
-            View details
-            <Icon name="arrowRight" size={16} />
+        {(soldOut || sellingFast) && (
+          <span className="absolute right-[12px] top-[12px] bg-white px-[10px] py-[5px] text-[12px] font-extrabold uppercase leading-[16px] tracking-[0.06em] text-blood">
+            {soldOut ? 'Sold out' : 'Selling fast'}
           </span>
+        )}
+      </div>
+
+      <div className="flex flex-1 flex-col p-[20px]">
+        <p className="text-[12px] font-extrabold uppercase leading-[16px] tracking-[0.08em] text-blood">{CATEGORY_LABELS[event.category]}</p>
+        <h3 className="ag-display mt-[6px] line-clamp-2 text-[28px] leading-[30px]">{event.title}</h3>
+        <p className="mt-[12px] text-[15px] font-bold leading-[22px]">{mediumDate(event.startsAt)} · {clockTime(event.startsAt)}</p>
+        <p className="text-[15px] leading-[22px] text-peach-muted">{event.venue}</p>
+
+        <div className="mt-auto flex items-center justify-between gap-3 pt-[18px]">
+          <span className="text-[17px] font-extrabold leading-[22px] tracking-[-0.02em]">{soldOut ? 'Sold out' : price}</span>
+          {!soldOut && (
+            <span className="inline-flex h-[44px] items-center gap-[6px] bg-flame px-[18px] text-[14px] font-black uppercase tracking-[0.04em] text-white transition-colors group-hover:bg-blood">
+              Book <Arrow />
+            </span>
+          )}
         </div>
       </div>
     </Link>

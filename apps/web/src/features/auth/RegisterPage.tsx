@@ -4,9 +4,9 @@
  */
 
 import { useState, type FormEvent } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { Button } from '../../components/ui/Button';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthFrame } from './AuthFrame';
+import { ApiRequestError } from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
 
 type SelectableRole = 'CUSTOMER' | 'ORGANIZER';
@@ -29,38 +29,34 @@ const PASSWORD_RULES: { label: string; test: (v: string) => boolean }[] = [
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const ROLES: { value: SelectableRole; title: string; description: string }[] = [
-  { value: 'CUSTOMER', title: 'Attendee', description: 'Discover events and buy tickets.' },
-  { value: 'ORGANIZER', title: 'Organizer', description: 'Create events and sell tickets.' },
+  { value: 'CUSTOMER', title: 'Attend events', description: 'Buy tickets, get QR passes' },
+  { value: 'ORGANIZER', title: 'Organize events', description: 'Sell tickets, run the gate' },
 ];
 
-/** api.ts throws `API error <status>`; recover the status to show a useful message. */
 function statusOf(err: unknown): number {
-  return Number(/API error (\d{3})/.exec(err instanceof Error ? err.message : '')?.[1]);
+  return err instanceof ApiRequestError ? err.status : 0;
 }
 
-const inputClass = (invalid: boolean) =>
-  [
-    'w-full rounded-xl border bg-white px-4 py-3 text-sm text-[#24222b] placeholder-[#aaa6a0]',
-    'outline-none transition focus:border-[#9b7040] focus:ring-4 focus:ring-[#d9a96b]/15',
-    invalid ? 'border-red-400' : 'border-[#e4e0d8] hover:border-[#c9c3b8]',
-  ].join(' ');
+const labelClass = 'mb-[6px] block text-[14px] font-extrabold uppercase leading-[18px] tracking-[0.04em] text-peach';
 
 export default function RegisterPage() {
   const { user: currentUser, isLoading, register } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromLocation = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from;
+  const from = fromLocation?.pathname ? `${fromLocation.pathname}${fromLocation.search ?? ''}` : undefined;
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<SelectableRole>('CUSTOMER');
-  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Already signed in → no need to register again.
-  if (isLoading) return <p className="p-8 text-center text-sm text-gray-500">Checking your session…</p>;
+  if (isLoading) return <p className="min-h-screen bg-ink p-8 text-center text-sm text-peach-soft">Checking your session…</p>;
   if (currentUser) return <Navigate to={currentUser.role === 'ORGANIZER' ? '/organizer' : currentUser.role === 'ADMIN' ? '/admin' : '/'} replace />;
 
   function validate(): FieldErrors {
@@ -98,7 +94,7 @@ export default function RegisterPage() {
         confirmPassword,
         role,
       });
-      navigate(createdUser.role === 'ORGANIZER' ? '/organizer' : '/', { replace: true });
+      navigate(from ?? (createdUser.role === 'ORGANIZER' ? '/organizer' : '/'), { replace: true });
     } catch (err) {
       const status = statusOf(err);
       if (status === 409) {
@@ -117,179 +113,128 @@ export default function RegisterPage() {
 
   return (
     <AuthFrame
-      eyebrow="A good place to start"
-      title="Create your account"
-      description="A few details and you’re in. Discover events and keep your tickets in one place."
-      footer={<>Already have an account? <Link to="/login" className="font-semibold text-[#815a31] hover:text-[#5f4021]">Sign in</Link></>}
+      eyebrow="Create account"
+      title="How will you use Argon?"
+      leftHeading={<>Join the<br />night</>}
+      leftVariant="dark"
+      footer={<>Already have an account?{' '}<Link to="/login" state={{ from: fromLocation }} className="font-extrabold tracking-[-0.02em] text-peach underline hover:text-white">Sign in</Link></>}
     >
-          <form onSubmit={handleSubmit} noValidate className="space-y-4">
-            {formError && (
-              <div
-                role="alert"
-                className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-              >
-                {formError}
-              </div>
-            )}
+      <form onSubmit={handleSubmit} noValidate className="mt-[17px]">
+        {formError && (
+          <div role="alert" className="mb-4 border border-red-500/40 bg-red-900/20 px-4 py-3 text-sm text-red-300">
+            {formError}
+          </div>
+        )}
 
-            <fieldset>
-              <legend className="mb-2 block text-sm font-semibold text-[#34313a]">How will you use Argon?</legend>
-              <div className="grid grid-cols-2 gap-3">
-                {ROLES.map((r) => {
-                  const selected = role === r.value;
-                  return (
-                    <label
-                      key={r.value}
-                      className={[
-                        'cursor-pointer rounded-xl border p-3 transition focus-within:ring-4 focus-within:ring-[#d9a96b]/20',
-                        selected
-                          ? 'border-[#b78a56] bg-[#fbf6ee]'
-                          : 'border-[#e4e0d8] bg-white hover:border-[#c9c3b8]',
-                      ].join(' ')}
-                    >
-                      <input
-                        type="radio"
-                        name="role"
-                        value={r.value}
-                        checked={selected}
-                        onChange={() => setRole(r.value)}
-                        className="sr-only"
-                      />
-                      <span className="block text-sm font-semibold text-[#34313a]">{r.title}</span>
-                      <span className="mt-0.5 block text-xs leading-4 text-[#77747c]">{r.description}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </fieldset>
-
-            <div>
-              <label htmlFor="name" className="mb-2 block text-sm font-semibold text-[#34313a]">
-                Full name
-              </label>
-              <input
-                id="name"
-                type="text"
-                autoComplete="name"
-                autoFocus
-                placeholder="Sokha Chan"
-                value={name}
-                onChange={(e) => { setName(e.target.value); setErrors((current) => ({ ...current, name: undefined })); }}
-                onBlur={() => validateField('name')}
-                aria-invalid={!!errors.name}
-                aria-describedby={errors.name ? 'name-error' : undefined}
-                className={inputClass(!!errors.name)}
-              />
-              {errors.name && (
-                <p id="name-error" className="mt-1.5 text-xs text-red-300">
-                  {errors.name}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="email" className="mb-2 block text-sm font-semibold text-[#34313a]">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); setErrors((current) => ({ ...current, email: undefined })); }}
-                onBlur={() => validateField('email')}
-                aria-invalid={!!errors.email}
-                aria-describedby={errors.email ? 'email-error' : undefined}
-                className={inputClass(!!errors.email)}
-              />
-              {errors.email && (
-                <p id="email-error" className="mt-1.5 text-xs text-red-300">
-                  {errors.email}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="password" className="mb-2 block text-sm font-semibold text-[#34313a]">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  placeholder="Create a strong password"
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); setErrors((current) => ({ ...current, password: undefined, confirmPassword: confirmPassword && e.target.value !== confirmPassword ? 'Passwords do not match.' : undefined })); }}
-                  onBlur={() => validateField('password')}
-                  aria-invalid={!!errors.password}
-                  aria-describedby={errors.password ? 'password-error password-rules' : 'password-rules'}
-                  className={`${inputClass(!!errors.password)} pr-16`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((s) => !s)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  aria-pressed={showPassword}
-                  className="absolute inset-y-0 right-0 px-4 text-xs font-semibold text-[#8b8790] hover:text-[#34313a]"
+        <fieldset>
+          <legend className="sr-only">How will you use Argon?</legend>
+          <div className="grid grid-cols-2 gap-[10px]">
+            {ROLES.map((r) => {
+              const selected = role === r.value;
+              return (
+                <label
+                  key={r.value}
+                  className={`h-[71px] cursor-pointer border px-[15px] pt-[14px] transition focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-white ${
+                    selected ? 'border-white bg-white text-ink' : 'border-white/35 text-white hover:border-white'
+                  }`}
                 >
-                  {showPassword ? 'Hide' : 'Show'}
-                </button>
-              </div>
-              {errors.password && (
-                <p id="password-error" className="mt-1.5 text-xs text-red-300">
-                  {errors.password}
-                </p>
-              )}
-              <ul id="password-rules" className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
-                {PASSWORD_RULES.map((r) => {
-                  const ok = r.test(password);
-                  return (
-                    <li key={r.label} className={`flex items-center gap-1.5 text-xs ${ok ? 'text-emerald-700' : 'text-[#96929a]'}`}>
-                      <span aria-hidden="true">{ok ? '✓' : '·'}</span>
-                      <span>
-                        {r.label}
-                        <span className="sr-only">{ok ? ' – met' : ' – not met yet'}</span>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+                  <input type="radio" name="role" value={r.value} checked={selected} onChange={() => setRole(r.value)} className="sr-only" />
+                  <span className="flex items-center gap-[11px] text-[16px] font-extrabold leading-[22px] tracking-[-0.03em]">
+                    <span aria-hidden="true" className={`ml-[5px] flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full ${selected ? 'border border-flame' : 'bg-white'}`}>
+                      {selected && <span className="h-[12px] w-[12px] rounded-full bg-flame" />}
+                    </span>
+                    {r.title}
+                  </span>
+                  <span className={`mt-[1px] block text-[13px] leading-[18px] ${selected ? 'text-peach-muted' : 'text-peach-soft'}`}>{r.description}</span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
 
-            <div>
-              <label htmlFor="confirmPassword" className="mb-2 block text-sm font-semibold text-[#34313a]">
-                Confirm password
-              </label>
-              <input
-                id="confirmPassword"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="new-password"
-                placeholder="Re-enter your password"
-                value={confirmPassword}
-                onChange={(e) => { setConfirmPassword(e.target.value); setErrors((current) => ({ ...current, confirmPassword: !e.target.value ? undefined : e.target.value !== password ? 'Passwords do not match.' : undefined })); }}
-                onBlur={() => validateField('confirmPassword')}
-                aria-invalid={!!errors.confirmPassword}
-                aria-describedby={errors.confirmPassword ? 'confirm-error' : undefined}
-                className={inputClass(!!errors.confirmPassword)}
-              />
-              {errors.confirmPassword && (
-                <p id="confirm-error" className="mt-1.5 text-xs text-red-300">
-                  {errors.confirmPassword}
-                </p>
-              )}
-            </div>
+        <label htmlFor="name" className={`${labelClass} mt-[17px]`}>Full name</label>
+        <input
+          id="name"
+          type="text"
+          autoComplete="name"
+          placeholder="Sokha Chan"
+          value={name}
+          onChange={(e) => { setName(e.target.value); setErrors((current) => ({ ...current, name: undefined })); }}
+          onBlur={() => validateField('name')}
+          aria-invalid={!!errors.name}
+          aria-describedby={errors.name ? 'name-error' : undefined}
+          className="ag-input h-[52px] text-[16px]"
+        />
+        {errors.name && <p id="name-error" className="mt-1.5 text-xs text-red-300">{errors.name}</p>}
 
-            <Button
-              type="submit"
-              isLoading={submitting}
-              className="w-full rounded-xl bg-[#292833] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#403d4a] focus:outline-none focus:ring-4 focus:ring-[#292833]/15 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Create account
-            </Button>
-          </form>
+        <label htmlFor="email" className={`${labelClass} mt-[17px]`}>Email</label>
+        <input
+          id="email"
+          type="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => { setEmail(e.target.value); setErrors((current) => ({ ...current, email: undefined })); }}
+          onBlur={() => validateField('email')}
+          aria-invalid={!!errors.email}
+          aria-describedby={errors.email ? 'email-error' : undefined}
+          className="ag-input h-[52px] text-[16px]"
+        />
+        {errors.email && <p id="email-error" className="mt-1.5 text-xs text-red-300">{errors.email}</p>}
+
+        <label htmlFor="password" className={`${labelClass} mt-[17px]`}>Password</label>
+        <input
+          id="password"
+          type="password"
+          autoComplete="new-password"
+          placeholder="Create a strong password"
+          value={password}
+          onChange={(e) => { setPassword(e.target.value); setErrors((current) => ({ ...current, password: undefined, confirmPassword: confirmPassword && e.target.value !== confirmPassword ? 'Passwords do not match.' : undefined })); }}
+          onBlur={() => validateField('password')}
+          aria-invalid={!!errors.password}
+          aria-describedby={errors.password ? 'password-error password-rules' : 'password-rules'}
+          className="ag-input h-[52px] text-[16px]"
+        />
+        {errors.password && <p id="password-error" className="mt-1.5 text-xs text-red-300">{errors.password}</p>}
+
+        <ul id="password-rules" className="mt-[15px] grid grid-cols-2 gap-x-[14px] gap-y-[4px]">
+          {PASSWORD_RULES.map((r) => {
+            const ok = r.test(password);
+            return (
+              <li key={r.label} className={`flex items-center gap-[4px] text-[13px] leading-[18px] ${ok ? 'text-green-300' : 'text-peach-soft'}`}>
+                <span aria-hidden="true" className="flex w-[10px] justify-center">{ok ? '✓' : <span className="h-[9px] w-[9px] rounded-full border border-current" />}</span>
+                <span>
+                  {r.label}
+                  <span className="sr-only">{ok ? ' – met' : ' – not met yet'}</span>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+
+        <label htmlFor="confirmPassword" className={`${labelClass} mt-[15px]`}>Confirm password</label>
+        <input
+          id="confirmPassword"
+          type="password"
+          autoComplete="new-password"
+          placeholder="Re-enter your password"
+          value={confirmPassword}
+          onChange={(e) => { setConfirmPassword(e.target.value); setErrors((current) => ({ ...current, confirmPassword: !e.target.value ? undefined : e.target.value !== password ? 'Passwords do not match.' : undefined })); }}
+          onBlur={() => validateField('confirmPassword')}
+          aria-invalid={!!errors.confirmPassword}
+          aria-describedby={errors.confirmPassword ? 'confirm-error' : undefined}
+          className="ag-input h-[52px] text-[16px]"
+        />
+        {errors.confirmPassword && <p id="confirm-error" className="mt-1.5 text-xs text-red-300">{errors.confirmPassword}</p>}
+
+        <button
+          type="submit"
+          disabled={submitting}
+          className="mt-[18px] flex h-[56px] w-full items-center justify-center bg-flame text-[16px] font-black uppercase tracking-[0.04em] text-white transition hover:bg-blood disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {submitting ? 'Creating account…' : 'Create account'}
+        </button>
+      </form>
     </AuthFrame>
   );
 }
