@@ -2,16 +2,18 @@
  * modules/tickets/service.ts – HMAC token minting and retrieval.
  */
 import type { FastifyInstance } from 'fastify';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import { signQrToken } from '../../lib/hmac.js';
 import { env } from '../../config/env.js';
 import { TicketStatus } from '@argon/shared';
 
 export async function mintTickets(
-  app: FastifyInstance,
+  appOrTx: FastifyInstance | Prisma.TransactionClient | PrismaClient,
   bookingId: string,
   quantity: number
 ): Promise<string[]> {
-  const booking = await app.prisma.booking.findUnique({
+  const prisma = (appOrTx && 'prisma' in appOrTx) ? appOrTx.prisma : (appOrTx as Prisma.TransactionClient);
+  const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
     include: { event: true },
   });
@@ -26,7 +28,7 @@ export async function mintTickets(
     const payload = `ARG:${booking.id}:${i + 1}:${Date.now()}`;
     const qrToken = signQrToken(payload, env.QR_SIGNING_SECRET);
 
-    await app.prisma.ticket.create({
+    await prisma.ticket.create({
       data: {
         bookingId: booking.id,
         eventId: booking.eventId,

@@ -55,9 +55,8 @@ export async function handlePaymentWebhook(
   }
 
   let bookingId: string;
-  let bookingQuantity: number;
 
-  // 3. Transaction: update booking and tier
+  // 3. Transaction: update booking, adjust tier capacity, and mint tickets atomically
   await app.prisma.$transaction(async (tx) => {
     const booking = await tx.booking.findFirst({
       where: { paymentReference: payload.bookingReference },
@@ -67,7 +66,6 @@ export async function handlePaymentWebhook(
     }
 
     bookingId = booking.id;
-    bookingQuantity = booking.quantity;
 
     const { count } = await tx.booking.updateMany({
       where: { id: booking.id, status: BookingStatus.PENDING },
@@ -88,12 +86,12 @@ export async function handlePaymentWebhook(
         reservedCount: { decrement: booking.quantity },
       },
     });
+
+    // Mint tickets inside the transaction so paid booking and tickets are guaranteed atomic
+    await mintTickets(tx, booking.id, booking.quantity);
   });
 
-  // 4. Mint tickets after transaction
-  await mintTickets(app, bookingId!, bookingQuantity!);
-
-  // 5. Delete Redis hold key
+  // 4. Delete Redis hold key
   await app.redis.del(`hold:${bookingId!}`).catch(() => {});
 }
 

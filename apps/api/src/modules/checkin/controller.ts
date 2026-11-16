@@ -26,6 +26,8 @@ export async function rosterController(
   reply: FastifyReply
 ): Promise<void> {
   const { eventId } = req.params;
-  const roster = await exportRoster(req.server, eventId);
+  const userId = req.user?.sub;
+  const isAdmin = req.user?.role === 'ADMIN';
+  const roster = await exportRoster(req.server, eventId, userId, isAdmin);
   return reply.send(roster);
 }

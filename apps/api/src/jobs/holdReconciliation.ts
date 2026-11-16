@@ -17,14 +17,18 @@ export async function runHoldReconciliation(app: FastifyInstance): Promise<void>
   for (const booking of expiredBookings) {
     try {
       await app.prisma.$transaction(async (tx) => {
-        await tx.booking.updateMany({
+        const { count } = await tx.booking.updateMany({
           where: { id: booking.id, status: BookingStatus.PENDING },
           data: { status: BookingStatus.EXPIRED },
         });
-        await tx.ticketTier.update({
-          where: { id: booking.tierId },
-          data: { reservedCount: { decrement: booking.quantity } },
-        });
+
+        // Only decrement reservedCount if this transaction actually transitioned the booking from PENDING to EXPIRED
+        if (count > 0) {
+          await tx.ticketTier.update({
+            where: { id: booking.tierId },
+            data: { reservedCount: { decrement: booking.quantity } },
+          });
+        }
       });
       await app.redis.del(`hold:${booking.id}`).catch(() => {});
     } catch (err) {

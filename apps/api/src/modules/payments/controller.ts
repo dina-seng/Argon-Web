@@ -7,6 +7,14 @@ export async function webhookController(req: FastifyRequest, reply: FastifyReply
   const signature = req.headers['x-gateway-signature'] as string;
   const rawBody = (req as any).rawBody as Buffer;
 
+  if (!rawBody || !signature) {
+    return reply.status(400).send({
+      statusCode: 400,
+      error: 'Bad Request',
+      message: 'Missing webhook signature or payload',
+    });
+  }
+
   try {
     await handlePaymentWebhook(req.server, payload, rawBody, signature);
     reply.send({ received: true });

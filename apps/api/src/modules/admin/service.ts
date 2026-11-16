@@ -119,7 +119,10 @@ export async function getPlatformOverview(
   let dbLatencyMs = 0;
   try {
     const dbStart = Date.now();
-    await prisma.$queryRaw`SELECT 1`;
+    await Promise.race([
+      prisma.$queryRaw`SELECT 1`,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('DB Timeout')), 1000)),
+    ]);
     dbLatencyMs = Date.now() - dbStart;
   } catch {
     dbStatus = 'DOWN';
@@ -525,6 +528,8 @@ export async function forceConfirmBooking(
       throw new HttpError(400, `Cannot force-confirm a ${booking.status.toLowerCase()} booking`);
     }
 
+    const isPending = booking.status === 'PENDING';
+
     await tx.booking.update({
       where: { id: bookingId },
       data: { status: 'PAID' },
@@ -548,10 +553,16 @@ export async function forceConfirmBooking(
       });
     }
 
+    const shouldDecrementReserved =
+      isPending &&
+      booking.tier &&
+      typeof (booking.tier as any).reservedCount === 'number';
+
     await tx.ticketTier.update({
       where: { id: booking.tierId },
       data: {
         soldCount: { increment: booking.quantity },
+        ...(shouldDecrementReserved ? { reservedCount: { decrement: booking.quantity } } : {}),
       },
     });
 
@@ -851,7 +862,10 @@ export async function getSystemHealthDetails(
   let connectionCount = 1;
 
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    await Promise.race([
+      prisma.$queryRaw`SELECT 1`,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('DB Timeout')), 1000)),
+    ]);
     dbLatencyMs = Date.now() - startDb;
   } catch {
     dbStatus = 'DOWN';

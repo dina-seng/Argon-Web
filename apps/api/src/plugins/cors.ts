@@ -19,11 +19,15 @@ export const corsPlugin = fp(async (app) => {
       if (!origin) {
         return cb(null, true);
       }
-      if (
-        configuredOrigins.includes(origin) ||
-        origin.endsWith('.vercel.app') ||
-        origin.startsWith('http://localhost:')
-      ) {
+      if (configuredOrigins.includes(origin)) {
+        return cb(null, true);
+      }
+      if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+        return cb(null, true);
+      }
+      // Strictly restrict Vercel preview domains to this project prefix
+      // to prevent arbitrary 3rd-party .vercel.app websites from exploiting CORS with credentials
+      if (/^https:\/\/argon-(web|scanner|api)(-[a-z0-9-]+)?\.vercel\.app$/.test(origin)) {
         return cb(null, true);
       }
       return cb(null, false);

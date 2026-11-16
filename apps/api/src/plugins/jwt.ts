@@ -35,21 +35,18 @@ export const jwtPlugin = fp(async (app) => {
     try {
       await request.jwtVerify();
     } catch {
-      reply.status(401).send({ statusCode: 401, error: 'Unauthorized', message: 'Invalid or expired token' });
-      return;
+      return reply.status(401).send({ statusCode: 401, error: 'Unauthorized', message: 'Invalid or expired token' });
     }
 
     const authorization = request.headers.authorization;
     const accessToken = authorization?.startsWith('Bearer ') ? authorization.slice(7) : undefined;
     if (accessToken && await isAccessTokenRevoked(app, accessToken)) {
-      reply.status(401).send({ statusCode: 401, error: 'Unauthorized', message: 'Invalid or expired token' });
-      return;
+      return reply.status(401).send({ statusCode: 401, error: 'Unauthorized', message: 'Invalid or expired token' });
     }
 
     const userId = request.user?.sub;
     if (userId && await isUserRevoked(app, userId)) {
-      reply.status(401).send({ statusCode: 401, error: 'Unauthorized', message: 'Account has been suspended' });
-      return;
+      return reply.status(401).send({ statusCode: 401, error: 'Unauthorized', message: 'Account has been suspended' });
     }
   });
 });

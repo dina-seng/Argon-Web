@@ -57,7 +57,9 @@ export async function createBooking(app: FastifyInstance, input: CreateBookingIn
     return newBooking;
   }, { isolationLevel: 'Serializable' });
 
-  await app.redis.set(`hold:${booking.id}`, '1', 'EX', 600);
+  if (app.redis && typeof app.redis.set === 'function') {
+    await app.redis.set(`hold:${booking.id}`, '1', 'EX', 600).catch(() => {});
+  }
 
   return {
     id: booking.id,

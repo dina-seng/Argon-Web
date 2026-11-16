@@ -27,14 +27,6 @@ export class HttpError extends Error {
   }
 }
 
-let defaultPrisma: PrismaClient | null = null;
-function getPrismaClient(): PrismaClient {
-  if (!defaultPrisma) {
-    defaultPrisma = new PrismaClient();
-  }
-  return defaultPrisma;
-}
-
 export interface TierMetric {
   id: string;
   name: string;
@@ -90,7 +82,7 @@ export async function getEventMetrics(
   userId: string,
   eventId: string,
   isAdmin: boolean,
-  prisma: PrismaClient = getPrismaClient()
+  prisma: PrismaClient
 ): Promise<EventMetricsResponse> {
   const event = await prisma.event.findUnique({
     where: { id: eventId },
@@ -164,7 +156,7 @@ export async function updateTierQuota(
   tierId: string,
   data: { capacity?: number | undefined },
   isAdmin: boolean,
-  prisma: PrismaClient = getPrismaClient()
+  prisma: PrismaClient
 ) {
   const event = await prisma.event.findUnique({
     where: { id: eventId },
@@ -220,7 +212,7 @@ export async function getAttendees(
   eventId: string,
   query: { page?: number | undefined; limit?: number | undefined; search?: string | undefined },
   isAdmin: boolean,
-  prisma: PrismaClient = getPrismaClient()
+  prisma: PrismaClient
 ): Promise<PaginatedAttendeesResponse> {
   const event = await prisma.event.findUnique({
     where: { id: eventId },
@@ -360,11 +352,11 @@ export interface OrganizerEventItem {
  * Includes tiers with capacity, price, currency, soldCount, and checkedInCount.
  */
 export async function listOrganizerEvents(
-  app: FastifyInstance | { prisma: PrismaClient },
+  app: FastifyInstance | { prisma: PrismaClient } | PrismaClient,
   organizerId: string,
   isAdmin = false
 ): Promise<OrganizerEventItem[]> {
-  const prisma = 'prisma' in app ? app.prisma : getPrismaClient();
+  const prisma = 'prisma' in app ? app.prisma : (app as unknown as PrismaClient);
 
   const where: Prisma.EventWhereInput = isAdmin ? {} : { organizerId };
 
