@@ -59,9 +59,9 @@ Configure these variables in your hosting provider's dashboard for each project.
 | :--- | :---: | :--- | :--- |
 | `NODE_ENV` | **Yes** | `production` | Enables production optimizations and disables debug traces. |
 | `PORT` | No | `3000` *(Render sets this automatically)* | Port for persistent server listener. |
-| `DATABASE_URL` | **Yes** | `postgresql://user:pass@ep-host.neon.tech/argon?sslmode=require` | **Pooled** PostgreSQL connection string (e.g. Neon `-pooler` or Supabase PgBouncer port `6543`). |
-| `DIRECT_URL` | No | `postgresql://user:pass@ep-host.neon.tech/argon?sslmode=require` | Direct (non-pooled) DB connection for running migrations. |
-| `REDIS_URL` | **Yes** | `rediss://default:token@host.upstash.io:6379` | TLS Redis URL for token revocation, session validation, and holds. |
+| `DATABASE_URL` | **Yes** | `<pooled-postgresql-url>?sslmode=require` | **Pooled** PostgreSQL connection string (e.g. Neon `-pooler` or Supabase PgBouncer port `6543`). |
+| `DIRECT_URL` | No | `<direct-postgresql-url>?sslmode=require` | Direct (non-pooled) DB connection for running migrations. |
+| `REDIS_URL` | **Yes** | `rediss://<user>:<token>@<host>:<port>` | TLS Redis URL for token revocation, session validation, and holds. |
 | `JWT_SECRET` | **Yes** | 32+ character hex or base64 string (`openssl rand -hex 32`) | Signs attendee and admin authentication tokens. |
 | `JWT_EXPIRES_IN` | No | `15m` | Lifetime of short-lived access tokens. |
 | `QR_SIGNING_SECRET`| **Yes**| 32+ character hex string (`openssl rand -hex 32`) | Secret for HMAC-SHA256 offline-verifiable QR gate passes. |
@@ -123,16 +123,14 @@ Under **Project Settings → Environment Variables**, add:
 From your local terminal, apply the database schema directly to your production PostgreSQL database:
 ```bash
 # 1. Apply all pending Prisma migrations
-DATABASE_URL="your-production-pooled-db-url" npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
+DATABASE_URL="<your-production-pooled-db-url>" npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
 
-# 2. (Optional) Seed clean baseline admin, organizers, and sample events
-DATABASE_URL="your-production-pooled-db-url" npx tsx apps/api/prisma/seed.ts
+# 2. (Optional) Run database seed script if initializing a staging/testing database
+DATABASE_URL="<your-production-pooled-db-url>" npx tsx apps/api/prisma/seed.ts
 ```
 
-Baseline accounts generated:
-- **Admin**: `admin@argon.kh` / `password123`
-- **Organizer**: `barcamp@argon.kh` / `password123`
-- **Organizer**: `tedx@argon.kh` / `password123`
+> [!WARNING]
+> Do not seed default test accounts into production. Create production administrators and organizers manually with unique, strong credentials.
 
 ---
 
@@ -206,7 +204,7 @@ curl -i https://your-api.vercel.app/events
 **Expected Response:** `HTTP/1.1 200 OK`, JSON array with published events.
 
 ### 3. Database & Redis Telemetry Check (Admin Only)
-1. Log in via `https://your-web.vercel.app/login` with `admin@argon.kh` / `password123`.
+1. Log in via `https://your-web.vercel.app/login` with your authorized admin account.
 2. Inspect the Admin Dashboard at `/admin`.
 3. Check the **System Health** panel (`/api/v1/admin/system/health`):
    - Database Status: `HEALTHY`
