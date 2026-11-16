@@ -1,185 +1,230 @@
-# Argon Vercel Deployment Guide
+# Argon Production Deployment Guide
 
-Complete step-by-step instructions for deploying both the **Argon Frontend (`apps/web`)** and **Argon Backend API (`apps/api`)** to **Vercel**, with PostgreSQL hosted on Neon or Supabase and Redis hosted on Upstash.
+Comprehensive guide for deploying the **Argon Event Discovery & QR Ticketing Platform** across **Vercel (Serverless)** or **Render / Containers (Persistent)**, backed by **Neon / Supabase PostgreSQL** and **Upstash Redis**.
 
 ---
 
-## 1. System Architecture
+## 1. System Architecture & Topology
 
-| Component | Directory | Type | Vercel Role | Runtime / Output |
+Argon is structured as an npm workspaces monorepo:
+
+```
+Argon-Web/
+├── apps/
+│   ├── api/          # Fastify REST API (Node.js 20+ ESM, Prisma 5, Redis)
+│   ├── web/          # Attendee / Organizer Web Portal (Vite + React SPA, Tailwind)
+│   └── scanner/      # Gate Attendant PWA (Vite + React PWA, BarcodeDetector / ZXing)
+├── packages/
+│   └── shared/       # Shared TypeScript types, Zod validation schemas & enums
+└── docker-compose.yml # Local development database & cache infrastructure
+```
+
+### Component Deployment Matrix
+
+| Component | Directory | Artifact / Output | Deployment Target | Runtime Role |
 | :--- | :--- | :--- | :--- | :--- |
-| **Frontend Web Portal** | `apps/web` | Vite + React SPA | Static Site with SPA Rewrites | `dist` |
-| **Backend REST API** | `apps/api` | Fastify REST API | Serverless Function | Node.js (`/api` handler) |
-| **Gate Scanner PWA** | `apps/scanner` | Vite + React PWA | Static Site with SPA Rewrites | `dist` |
-| **Database** | External | PostgreSQL 16 | External Hosted DB | Neon or Supabase |
-| **Cache & Revocation**| External | Redis 7 | External Hosted Redis | Upstash or Managed Redis |
+| **Backend REST API** | `apps/api` | Fastify App / Serverless Handler | **Vercel** *(Serverless)* OR **Render/VPS** *(Container)* | Node.js 20+ ESM |
+| **Public & Admin Web** | `apps/web` | Static Single Page Application (`dist`) | **Vercel** / Static CDN | Static Hosting + SPA Rewrites |
+| **Gate Scanner PWA** | `apps/scanner` | Progressive Web App (`dist`) | **Vercel** / Static CDN | Static Hosting + SPA Rewrites |
+| **Relational Database** | External | PostgreSQL 16 with Connection Pooling | **Neon.tech** or **Supabase** | Managed PostgreSQL |
+| **Cache & Revocation** | External | Redis 7 (In-memory KV with TLS) | **Upstash** or Managed Redis | TLS-enabled Redis (`rediss://`) |
 
 ---
 
-## 2. Prerequisites
+## 2. Server Runtime Architecture & Hosting Modes
 
-1. A [Vercel Account](https://vercel.com).
-2. The GitHub repository with permissions to import `Argon-Web`.
-3. A hosted **PostgreSQL** database (e.g., [Neon.tech](https://neon.tech) or [Supabase](https://supabase.com)).
-4. A hosted **Redis** database (e.g., [Upstash](https://upstash.com)).
+The backend supports two distinct runtime environments:
+
+### Mode A: Serverless Functions (Vercel)
+- **Entry point**: `apps/api/api/index.js` importing `apps/api/dist/app.js`.
+- **Execution model**: Ephemeral, on-demand AWS Lambda / Vercel execution. Request lifecycle terminates or freezes upon reply.
+- **Connection handling**: Prisma and Redis connections are cached in-memory across warm function invocations (`vercelApp ??= buildApp()`).
+- **Hold sweeper limitation**: The `setInterval` background reconciliation sweeper in `server.ts` **does not run** in serverless functions. Expired holds must be cleared via scheduled Vercel Cron jobs or on-demand sweeps.
+
+### Mode B: Persistent Container / Long-Running Process (Render / Railway / Fly.io / VPS)
+- **Entry point**: `apps/api/dist/server.ts` (`npm run start:prod`).
+- **Execution model**: Persistent Node.js 20 process listening on `0.0.0.0:${PORT}`.
+- **Background jobs**: Runs native 60-second background sweeper (`runHoldReconciliation`) to release expired ticket holds.
+- **Connection handling**: Long-lived connection pooling to PostgreSQL and Redis.
 
 ---
 
-## 3. Part 1: Deploy Backend API (`apps/api`)
+## 3. Comprehensive Environment Variables Reference
 
-Because the frontend depends on the API URL, **deploy the API first**.
+Configure these variables in your hosting provider's dashboard for each project.
 
-### Step 1: Import Project in Vercel
-1. In Vercel, click **Add New…** → **Project**.
+### Backend API (`apps/api`)
+
+| Variable | Required | Recommended Production Value / Format | Purpose |
+| :--- | :---: | :--- | :--- |
+| `NODE_ENV` | **Yes** | `production` | Enables production optimizations and disables debug traces. |
+| `PORT` | No | `3000` *(Render sets this automatically)* | Port for persistent server listener. |
+| `DATABASE_URL` | **Yes** | `postgresql://user:pass@ep-host.neon.tech/argon?sslmode=require` | **Pooled** PostgreSQL connection string (e.g. Neon `-pooler` or Supabase PgBouncer port `6543`). |
+| `DIRECT_URL` | No | `postgresql://user:pass@ep-host.neon.tech/argon?sslmode=require` | Direct (non-pooled) DB connection for running migrations. |
+| `REDIS_URL` | **Yes** | `rediss://default:token@host.upstash.io:6379` | TLS Redis URL for token revocation, session validation, and holds. |
+| `JWT_SECRET` | **Yes** | 32+ character hex or base64 string (`openssl rand -hex 32`) | Signs attendee and admin authentication tokens. |
+| `JWT_EXPIRES_IN` | No | `15m` | Lifetime of short-lived access tokens. |
+| `QR_SIGNING_SECRET`| **Yes**| 32+ character hex string (`openssl rand -hex 32`) | Secret for HMAC-SHA256 offline-verifiable QR gate passes. |
+| `QR_HMAC_SECRET` | No | Same as `QR_SIGNING_SECRET` | Backward-compatibility alias. |
+| `CLIENT_URL` | **Yes** | `https://argon-web.vercel.app` | Whitelisted origin for web CORS requests. |
+| `SCANNER_URL` | **Yes** | `https://argon-scanner.vercel.app` | Whitelisted origin for scanner CORS requests. |
+| `PAYMENT_GATEWAY_BASE_URL` | **Yes** | `https://api.payment-gateway.example.com` | Upstream payment processor URL. |
+| `PAYMENT_WEBHOOK_SECRET` | **Yes** | 32+ character random secret string | Verifies HMAC signatures on inbound payment callbacks (`/payments/webhook`). |
+| `PAYMENT_GATEWAY_SECRET` | No | Gateway API merchant key | Communicates with the payment gateway client. |
+
+> [!CAUTION]
+> Never put `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, or `QR_SIGNING_SECRET` in frontend (`apps/web` or `apps/scanner`) environment settings. Frontend bundles are public.
+
+### Frontend Web Portal (`apps/web`)
+
+| Variable | Required | Value | Notes |
+| :--- | :---: | :--- | :--- |
+| `VITE_API_BASE_URL` | **Yes** | `https://your-api.vercel.app` *(or Render API URL)* | Base REST API URL **without** trailing slash. |
+| `VITE_APP_NAME` | No | `Argon` | Display branding across pages and tab titles. |
+
+### Mobile Scanner PWA (`apps/scanner`)
+
+| Variable | Required | Value | Notes |
+| :--- | :---: | :--- | :--- |
+| `VITE_API_BASE_URL` | **Yes** | `https://your-api.vercel.app` *(or Render API URL)* | Target backend for ticket scans and roster sync. |
+| `VITE_APP_NAME` | No | `Argon Scanner` | PWA title. |
+
+---
+
+## 4. Deployment Option A: Deploying Backend to Vercel (Serverless)
+
+### Step 1: Create Vercel Project for API
+1. In the Vercel Dashboard, select **Add New…** → **Project**.
 2. Select the **`Argon-Web`** repository.
-3. Configure the **Project Settings**:
+3. Configure project settings:
+   - **Project Name**: `argon-api`
+   - **Framework Preset**: **Other**
+   - **Root Directory**: **`apps/api`**
+   - **Include files outside the Root Directory in the Build Step**: **CHECKED / ENABLED** *(Mandatory for resolving `@argon/shared`)*
+   - **Build Command**:
+     ```bash
+     cd ../.. && npm run build --workspace=@argon/shared && cd apps/api && npm run prisma:generate && npm run build
+     ```
+   - **Output Directory**: Leave empty
+   - **Install Command**: `npm install`
 
-| Setting | Value | Why |
-| :--- | :--- | :--- |
-| **Project Name** | `argon-api` *(or your choice)* | Distinguishes backend project |
-| **Framework Preset** | **Other** | Fastify runs as a Node.js serverless function |
-| **Root Directory** | **`.`** *(Repository Root)* | Required to resolve `@argon/shared` workspace |
-| **Build Command** | `npm run build:api` | Builds `@argon/shared`, generates Prisma, compiles `apps/api/dist` |
-| **Output Directory** | Leave empty | Serverless function uses `apps/api/api/index.js` |
-| **Install Command** | `npm install` | Installs root monorepo dependencies |
+### Step 2: Configure Vercel API Environment Variables
+Under **Project Settings → Environment Variables**, add:
+- `NODE_ENV=production`
+- `DATABASE_URL`: Your pooled database URL (`sslmode=require`)
+- `REDIS_URL`: Your Upstash Redis URL (`rediss://...`)
+- `JWT_SECRET`: Random 32+ char secret
+- `QR_SIGNING_SECRET`: Random 32+ char secret
+- `CLIENT_URL`: `https://argon-web.vercel.app` *(or temp URL, update after frontend deploy)*
+- `SCANNER_URL`: `https://argon-scanner.vercel.app`
+- `PAYMENT_WEBHOOK_SECRET`: Secure webhook secret
 
-> **How Vercel Routes API Requests:**
-> The repository includes `apps/api/vercel.json` and `apps/api/api/index.js`. Vercel directs all incoming paths `/(.*)` into Fastify's request router.
+### Step 3: Run Initial Database Migrations & Seeds
+From your local terminal, apply the database schema directly to your production PostgreSQL database:
+```bash
+# 1. Apply all pending Prisma migrations
+DATABASE_URL="your-production-pooled-db-url" npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
 
-### Step 2: Configure API Environment Variables
+# 2. (Optional) Seed clean baseline admin, organizers, and sample events
+DATABASE_URL="your-production-pooled-db-url" npx tsx apps/api/prisma/seed.ts
+```
 
-In **Settings → Environment Variables**, add:
-
-| Variable | Recommended / Example Value | Notes |
-| :--- | :--- | :--- |
-| `NODE_ENV` | `production` | Enables production optimizations |
-| `DATABASE_URL` | `postgresql://user:pass@ep-host.neon.tech/argon?sslmode=require` | Use pooled connection URL |
-| `REDIS_URL` | `rediss://default:token@host.upstash.io:6379` | TLS Redis URL for token revocation |
-| `JWT_SECRET` | *(32+ character random string)* | E.g., `openssl rand -hex 32` |
-| `JWT_EXPIRES_IN`| `15m` | Token expiry duration |
-| `QR_SIGNING_SECRET`| *(32+ character random string)* | Secret for HMAC gate QR tickets |
-| `QR_HMAC_SECRET` | *(Same value as `QR_SIGNING_SECRET`)* | Fallback alias |
-| `CLIENT_URL` | `https://argon-web.vercel.app` *(update once frontend is deployed)* | CORS whitelist for web |
-| `SCANNER_URL` | `https://argon-scanner.vercel.app` *(update once scanner is deployed)* | CORS whitelist for scanner |
-| `PAYMENT_GATEWAY_BASE_URL` | `https://sandbox.payment-gateway.example.com` | Sandbox or live payment gateway |
-| `PAYMENT_WEBHOOK_SECRET` | *(32+ character random string)* | Webhook verification key |
-
-### Step 3: Deploy & Run Database Migrations
-1. Click **Deploy**.
-2. Copy your assigned API domain (e.g., `https://argon-api.vercel.app`).
-3. Run the database migration from your local terminal with production credentials:
-   ```bash
-   npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
-   ```
-4. *(Optional)* Seed baseline admin and test events:
-   ```bash
-   npx tsx apps/api/prisma/seed.ts
-   ```
+Baseline accounts generated:
+- **Admin**: `admin@argon.kh` / `password123`
+- **Organizer**: `barcamp@argon.kh` / `password123`
+- **Organizer**: `tedx@argon.kh` / `password123`
 
 ---
 
-## 4. Part 2: Deploy Frontend Web Portal (`apps/web`)
+## 5. Deployment Option B: Deploying Backend to Render / Docker (Persistent)
 
-### Step 1: Import Project in Vercel
-1. In Vercel, click **Add New…** → **Project**.
-2. Select the **`Argon-Web`** repository again.
-3. Configure the **Project Settings**:
+For automatic hold reconciliation and long-lived connection pools, deploying as a container or Web Service is recommended.
 
-| Setting | Value | Why |
+### Step 1: Render Web Service Configuration
+1. In Render, select **New +** → **Blueprint** (or **Web Service**).
+2. The repository includes [apps/api/render.yaml](file:///D:/year%203/Term1/Project%20manager/Project/Product/Argon-Web/apps/api/render.yaml):
+   - **Environment**: Node 20
+   - **Build Command**: `npm install && npm run build --workspace=@argon/shared && npm run prisma:generate --workspace=apps/api && npm run build --workspace=apps/api`
+   - **Start Command**: `npm run start:prod --workspace=apps/api`
+   - **Health Check Path**: `/health`
+3. Add environment variables (`DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `QR_SIGNING_SECRET`, etc.).
+
+---
+
+## 6. Deploying the Frontends (Web & Scanner) to Vercel
+
+### Part 1: Deploy Web Portal (`apps/web`)
+1. Create a new Vercel Project from the `Argon-Web` repository.
+2. Settings:
+   - **Project Name**: `argon-web`
+   - **Framework Preset**: **Vite**
+   - **Root Directory**: **`apps/web`**
+   - **Include files outside the Root Directory in the Build Step**: **CHECKED / ENABLED**
+   - **Build Command**:
+     ```bash
+     cd ../.. && npm run build --workspace=@argon/shared && cd apps/web && npm run build
+     ```
+   - **Output Directory**: `dist`
+3. Environment Variables:
+   - `VITE_API_BASE_URL`: `https://argon-api.vercel.app` *(your deployed API domain)*
+   - `VITE_APP_NAME`: `Argon`
+4. Click **Deploy**.
+
+### Part 2: Deploy Gate Scanner PWA (`apps/scanner`)
+1. Create a new Vercel Project from the `Argon-Web` repository.
+2. Settings:
+   - **Project Name**: `argon-scanner`
+   - **Framework Preset**: **Vite**
+   - **Root Directory**: **`apps/scanner`**
+   - **Include files outside the Root Directory in the Build Step**: **CHECKED / ENABLED**
+   - **Build Command**:
+     ```bash
+     cd ../.. && npm run build --workspace=@argon/shared && cd apps/scanner && npm run build
+     ```
+   - **Output Directory**: `dist`
+3. Environment Variables:
+   - `VITE_API_BASE_URL`: `https://argon-api.vercel.app`
+   - `VITE_APP_NAME`: `Argon Scanner`
+4. Click **Deploy**.
+
+---
+
+## 7. Post-Deployment Verification & Smoke Tests
+
+Execute these verification checks in order:
+
+### 1. API Health & Version
+```bash
+curl -i https://your-api.vercel.app/health
+```
+**Expected Response:** `HTTP/1.1 200 OK`, `{"status":"ok","version":"0.1.0"}`
+
+### 2. Public Events Feed
+```bash
+curl -i https://your-api.vercel.app/events
+```
+**Expected Response:** `HTTP/1.1 200 OK`, JSON array with published events.
+
+### 3. Database & Redis Telemetry Check (Admin Only)
+1. Log in via `https://your-web.vercel.app/login` with `admin@argon.kh` / `password123`.
+2. Inspect the Admin Dashboard at `/admin`.
+3. Check the **System Health** panel (`/api/v1/admin/system/health`):
+   - Database Status: `HEALTHY`
+   - Redis Status: `HEALTHY` (verifies TLS connection to Upstash)
+
+### 4. Direct Refresh (SPA Routing)
+Navigate to `https://your-web.vercel.app/admin/users` and refresh the page (F5). It must re-render without a Vercel 404 error.
+
+---
+
+## 8. Common Troubleshooting & Runbook
+
+| Symptom | Root Cause | Remediation |
 | :--- | :--- | :--- |
-| **Project Name** | `argon-web` *(or your choice)* | Main frontend domain |
-| **Framework Preset** | **Vite** | Auto-configures Vite static build |
-| **Root Directory** | Click **Edit** → select `apps/web` | Points to web application folder |
-| **Include files outside root** | **Checked / Enabled** | **Crucial:** allows access to `packages/shared` |
-| **Build Command** | `cd ../.. && npm run build --workspace=@argon/shared && cd apps/web && npm run build` | Builds shared types before bundling web |
-| **Output Directory** | `dist` | Default Vite build directory |
-| **Install Command** | `npm install` | Monorepo dependency resolution |
-
-### Step 2: Configure Web Environment Variables
-
-In **Settings → Environment Variables**, add:
-
-| Variable | Value | Notes |
-| :--- | :--- | :--- |
-| `VITE_API_BASE_URL` | `https://argon-api.vercel.app` | **Must point to your deployed Vercel API** (No trailing slash) |
-| `VITE_APP_NAME` | `Argon` | Display name in web app |
-
-> **SPA Route Handling:**
-> `apps/web/vercel.json` is pre-configured with `{"rewrites": [{"source": "/(.*)", "destination": "/index.html"}]}` so deep links like `/admin`, `/organizer`, and `/events/:id` reload without 404 errors.
-
-### Step 3: Deploy Frontend
-Click **Deploy**. Copy your production web URL (e.g., `https://argon-web.vercel.app`).
-
----
-
-## 5. Part 3: Deploy Mobile Scanner PWA (`apps/scanner`)
-
-### Step 1: Project Settings
-
-| Setting | Value |
-| :--- | :--- |
-| **Project Name** | `argon-scanner` |
-| **Framework Preset** | `Vite` |
-| **Root Directory** | `apps/scanner` |
-| **Include files outside root** | **Checked / Enabled** |
-| **Build Command** | `cd ../.. && npm run build --workspace=@argon/shared && cd apps/scanner && npm run build` |
-| **Output Directory** | `dist` |
-
-### Step 2: Environment Variables
-
-| Variable | Value |
-| :--- | :--- |
-| `VITE_API_BASE_URL` | `https://argon-api.vercel.app` |
-| `VITE_APP_NAME` | `Argon Scanner` |
-
----
-
-## 6. Part 4: Sync CORS Whitelist
-
-Once both frontends are deployed:
-1. Open the **`argon-api`** project in Vercel.
-2. Go to **Settings → Environment Variables**.
-3. Update `CLIENT_URL` to your live web domain:
-   ```dotenv
-   CLIENT_URL=https://argon-web.vercel.app
-   ```
-4. Update `SCANNER_URL` to your live scanner domain:
-   ```dotenv
-   SCANNER_URL=https://argon-scanner.vercel.app
-   ```
-5. Trigger a quick redeploy on the API project (**Deployments → Redeploy**) so the CORS rules take effect.
-
----
-
-## 7. Post-Deployment Verification Checklist
-
-Verify your deployed system using this order:
-
-- [ ] **API Health Check**:
-  Visit `https://your-api.vercel.app/health`.
-  Expected response: `{"status":"ok","version":"0.1.0"}`.
-- [ ] **Public Events Feed**:
-  Visit `https://your-api.vercel.app/events`.
-  Expected response: JSON array of published events.
-- [ ] **Frontend Loading**:
-  Open `https://your-web.vercel.app`. Discover feed should render sample events without connection alerts.
-- [ ] **Super-Admin Governance Login**:
-  Navigate to `https://your-web.vercel.app/login`.
-  Log in with `admin@argon.kh` / `password123`.
-  Verify automatic redirect to `/admin` dashboard and check that telemetry metrics and users list load properly.
-- [ ] **Direct Page Refresh**:
-  In `/admin` or `/organizer`, press browser refresh (F5). The page should re-render cleanly without a Vercel 404.
-- [ ] **Mobile Gate Scanner**:
-  Open `https://your-scanner.vercel.app`. Verify camera permission prompts and login modal.
-
----
-
-## 8. Common Troubleshooting
-
-| Issue | Root Cause | Solution |
-| :--- | :--- | :--- |
-| **"Can't reach the server. Check your connection..."** | `VITE_API_BASE_URL` is missing or still set to `http://localhost:3000` | In `argon-web` Vercel settings, set `VITE_API_BASE_URL` to your HTTPS API domain and redeploy. |
-| **CORS Error in Browser Console** | API has not whitelisted the Vercel domain | In `argon-api`, set `CLIENT_URL` to `https://your-web.vercel.app`. The API already automatically allows any `*.vercel.app` origin. |
-| **`ERR_MODULE_NOT_FOUND` in API function logs** | Missing `.js` extension on relative ESM imports | Resolved in `apps/api/src/modules/admin/`. All relative imports in ESM require explicit `.js` extensions. |
-| **Vercel Build fails: Cannot find `@argon/shared`** | "Include files outside root" was unchecked | In Vercel project settings, ensure Root Directory is allowed to access root workspace packages. |
-| **Database connection timeout / Connection limit** | Direct connection URL used in serverless environment | Use Neon / Supabase pooled connection string (`-pooler` endpoint) with `sslmode=require`. |
+| **`Error [ERR_MODULE_NOT_FOUND]`** in API function logs | Relative import missing `.js` file extension in ESM runtime | Ensure all relative imports in `apps/api/src/**/*.ts` use `.js` extensions (e.g. `import from './service.js'`). Compile with `npm run build:api` to verify. |
+| **"Can't reach the server. Check your connection..."** in frontend | `VITE_API_BASE_URL` is unset or points to `localhost` | Update `VITE_API_BASE_URL` in frontend project settings on Vercel to your live HTTPS API domain and trigger a redeploy. |
+| **CORS policy error in browser console** | Calling domain not in `CLIENT_URL` / `SCANNER_URL` | Add your frontend domains to `CLIENT_URL` and `SCANNER_URL` in `argon-api` environment variables. Note: `*.vercel.app` is whitelisted by default in `cors.ts`. |
+| **Prisma `P1001` Can't reach database server** | Missing `sslmode=require` or using non-pooled connection | Use the connection pooler URL provided by Neon or Supabase with `?sslmode=require`. Ensure outbound IP is allowed. |
+| **`Redis connection: Connection is closed`** | Missing TLS or invalid Upstash connection string | Ensure `REDIS_URL` begins with `rediss://` (with double 's' for TLS) on hosted Upstash instances. |
+| **Vercel Build fails: Cannot find module `@argon/shared`** | "Include files outside root" unchecked | In Vercel Project Settings → General → Root Directory, ensure the checkbox **"Include files outside the Root Directory in the Build Step"** is checked. |
+| **Pending bookings not expiring on Vercel** | Background `setInterval` does not run in serverless | Trigger hold sweeper via scheduled webhook or deploy API on a persistent runner (Render/Docker) where `server.ts` runs the 60s sweeper. |
