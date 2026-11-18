@@ -50,17 +50,22 @@ async function main() {
   ];
 
   // Clean existing tickets, audit logs, bookings, tiers, events, and users
-  const existingEvents = await prisma.event.findMany({
-    where: { title: { in: seedEventTitles } },
-    select: { id: true },
-  });
-  const eventIds = existingEvents.map((e) => e.id);
-
   const existingUsers = await prisma.user.findMany({
     where: { email: { in: seedEmails } },
     select: { id: true },
   });
   const userIds = existingUsers.map((u) => u.id);
+
+  const existingEvents = await prisma.event.findMany({
+    where: {
+      OR: [
+        { title: { in: seedEventTitles } },
+        { organizerId: { in: userIds } },
+      ],
+    },
+    select: { id: true },
+  });
+  const eventIds = existingEvents.map((e) => e.id);
 
   if (eventIds.length > 0 || userIds.length > 0) {
     await prisma.ticket.deleteMany({
@@ -96,7 +101,12 @@ async function main() {
     });
 
     await prisma.event.deleteMany({
-      where: { id: { in: eventIds } },
+      where: {
+        OR: [
+          { id: { in: eventIds } },
+          { organizerId: { in: userIds } },
+        ],
+      },
     });
 
     await prisma.user.deleteMany({
