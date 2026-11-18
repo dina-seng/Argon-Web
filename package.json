@@ -15,10 +15,15 @@
     "build:web": "npm run build --workspace=apps/web",
     "build:scanner": "npm run build --workspace=apps/scanner",
     "build": "npm run build --workspaces --if-present",
+    "db:seed": "npm run prisma:seed --workspace=apps/api",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\" --ignore-path .gitignore"
+  },
+  "prisma": {
+    "schema": "apps/api/prisma/schema.prisma",
+    "seed": "npm run prisma:seed --workspace=apps/api"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.0.0",

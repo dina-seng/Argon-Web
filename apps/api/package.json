@@ -18,6 +18,9 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "dev:token": "tsx scripts/devToken.ts"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "dependencies": {
     "@argon/shared": "*",
     "@fastify/cors": "^9.0.0",
