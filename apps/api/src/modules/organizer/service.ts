@@ -424,3 +424,68 @@ export async function listOrganizerEvents(
     };
   });
 }
+
+export async function getEventBookings(
+  userId: string,
+  eventId: string,
+  isAdmin: boolean,
+  prisma: PrismaClient
+) {
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+  });
+
+  if (!event) {
+    throw new HttpError(404, 'Event not found', 'Not Found');
+  }
+
+  if (!isAdmin && event.organizerId !== userId) {
+    throw new HttpError(403, 'You do not have access to this event', 'Forbidden');
+  }
+
+  const bookings = await prisma.booking.findMany({
+    where: { eventId },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      tier: {
+        select: {
+          id: true,
+          name: true,
+          price: true,
+        },
+      },
+      tickets: {
+        select: {
+          id: true,
+          status: true,
+          checkedInAt: true,
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return {
+    eventId,
+    total: bookings.length,
+    bookings: bookings.map((b) => ({
+      id: b.id,
+      orderNumber: b.paymentReference ?? b.id.slice(0, 8).toUpperCase(),
+      status: b.status,
+      quantity: b.quantity,
+      createdAt: b.createdAt,
+      user: b.user,
+      tier: {
+        ...b.tier,
+        price: Number(b.tier.price),
+      },
+      tickets: b.tickets,
+    })),
+  };
+}

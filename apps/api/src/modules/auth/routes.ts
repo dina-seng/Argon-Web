@@ -4,7 +4,7 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import { registerController, loginController, refreshController, logoutController } from './controller.js';
+import { registerController, loginController, refreshController, logoutController, meController } from './controller.js';
 import { registerSchema, loginSchema, refreshSchema, logoutSchema } from './schema.js';
 
 export async function authRoutes(app: FastifyInstance) {
@@ -29,5 +29,10 @@ export async function authRoutes(app: FastifyInstance) {
     config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
     schema: { body: logoutSchema },
     handler: logoutController,
+  });
+
+  app.get('/me', {
+    preHandler: [app.authenticate],
+    handler: meController,
   });
 }
