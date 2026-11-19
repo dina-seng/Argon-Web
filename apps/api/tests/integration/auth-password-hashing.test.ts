@@ -13,7 +13,7 @@ import type { FastifyInstance } from 'fastify';
 import bcrypt from 'bcrypt';
 import { buildApp } from '../../src/app';
 
-describe('ARGON-22 – passwords are stored as bcrypt hashes', () => {
+describe('passwords are stored as bcrypt hashes', () => {
   let app: FastifyInstance;
 
   const email = `bcrypt-${randomUUID()}@argon.kh`;
