@@ -41,11 +41,11 @@ if (process.env.DATABASE_URL) {
   process.env.DATABASE_URL = process.env.DATABASE_URL.replace(/[\r\n\t\s]+/g, '');
 }
 
-const prisma = new PrismaClient({
-  datasources: process.env.DATABASE_URL
-    ? { db: { url: process.env.DATABASE_URL } }
-    : undefined,
-});
+const prisma = process.env.DATABASE_URL
+  ? new PrismaClient({
+      datasources: { db: { url: process.env.DATABASE_URL } },
+    })
+  : new PrismaClient();
 
 // Deterministic bcrypt hash for 'password123'
 const PASSWORD_HASH =
