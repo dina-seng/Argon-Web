@@ -26,6 +26,8 @@ jobs:
   typecheck:
     name: Type Check
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL || '******localhost:5432/argon_test' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

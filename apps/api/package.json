@@ -11,6 +11,7 @@
     "start": "node dist/server.js",
     "start:prod": "prisma migrate deploy && node dist/server.js",
     "lint": "eslint src --ext .ts",
+    "pretypecheck": "prisma generate",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "prisma:generate": "prisma generate",

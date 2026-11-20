@@ -5,7 +5,7 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import { PrismaClient, type Prisma } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 
 export class HttpError extends Error {
   statusCode: number;
