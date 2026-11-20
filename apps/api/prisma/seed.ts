@@ -13,6 +13,9 @@
  * Run with: npm run prisma:seed
  */
 
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
 import {
   PrismaClient,
   Role,
@@ -20,7 +23,29 @@ import {
   EventCategory,
 } from '@prisma/client';
 
-const prisma = new PrismaClient();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Automatically load apps/api/.env if not already loaded
+const envPath = resolve(__dirname, '../.env');
+if (existsSync(envPath) && typeof process.loadEnvFile === 'function') {
+  try {
+    process.loadEnvFile(envPath);
+  } catch {
+    // env already loaded or unavailable
+  }
+}
+
+// Sanitize DATABASE_URL if corrupted by multiline terminal wrapping/whitespace
+if (process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = process.env.DATABASE_URL.replace(/[\r\n\t\s]+/g, '');
+}
+
+const prisma = new PrismaClient({
+  datasources: process.env.DATABASE_URL
+    ? { db: { url: process.env.DATABASE_URL } }
+    : undefined,
+});
 
 // Deterministic bcrypt hash for 'password123'
 const PASSWORD_HASH =
@@ -50,17 +75,22 @@ async function main() {
   ];
 
   // Clean existing tickets, audit logs, bookings, tiers, events, and users
-  const existingEvents = await prisma.event.findMany({
-    where: { title: { in: seedEventTitles } },
-    select: { id: true },
-  });
-  const eventIds = existingEvents.map((e) => e.id);
-
   const existingUsers = await prisma.user.findMany({
     where: { email: { in: seedEmails } },
     select: { id: true },
   });
   const userIds = existingUsers.map((u) => u.id);
+
+  const existingEvents = await prisma.event.findMany({
+    where: {
+      OR: [
+        { title: { in: seedEventTitles } },
+        { organizerId: { in: userIds } },
+      ],
+    },
+    select: { id: true },
+  });
+  const eventIds = existingEvents.map((e) => e.id);
 
   if (eventIds.length > 0 || userIds.length > 0) {
     await prisma.ticket.deleteMany({
@@ -96,7 +126,12 @@ async function main() {
     });
 
     await prisma.event.deleteMany({
-      where: { id: { in: eventIds } },
+      where: {
+        OR: [
+          { id: { in: eventIds } },
+          { organizerId: { in: userIds } },
+        ],
+      },
     });
 
     await prisma.user.deleteMany({

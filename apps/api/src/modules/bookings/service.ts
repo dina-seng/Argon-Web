@@ -8,6 +8,8 @@
  */
 
 import type { FastifyInstance } from 'fastify';
+import { BookingStatus } from '@argon/shared';
+import { mintTickets } from '../tickets/service.js';
 
 export interface CreateBookingInput {
   userId: string;
@@ -16,12 +18,146 @@ export interface CreateBookingInput {
   quantity: number;
 }
 
-export async function createBooking(_app: FastifyInstance, _input: CreateBookingInput): Promise<unknown> {
-  // TODO: implement Flow A inside prisma.$transaction
-  throw new Error('Not implemented');
+export async function createBooking(app: FastifyInstance, input: CreateBookingInput): Promise<unknown> {
+  const booking = await app.prisma.$transaction(async (tx) => {
+    const tier = await tx.ticketTier.findUnique({ where: { id: input.tierId } });
+    if (!tier) {
+      const err = Object.assign(new Error('Ticket tier not found'), { statusCode: 404 });
+      throw err;
+    }
+
+    if (tier.capacity - tier.soldCount - tier.reservedCount < input.quantity) {
+      const err = Object.assign(new Error('Not enough tickets available'), { statusCode: 409 });
+      throw err;
+    }
+
+    // Atomic conditional update using raw SQL to prevent race conditions
+    const result = await tx.$executeRaw`
+      UPDATE "TicketTier"
+      SET "reservedCount" = "reservedCount" + ${input.quantity}
+      WHERE id = ${input.tierId}::uuid
+        AND capacity - "soldCount" - "reservedCount" >= ${input.quantity}
+    `;
+
+    if (result === 0) {
+      const err = Object.assign(new Error('Not enough tickets available'), { statusCode: 409 });
+      throw err;
+    }
+
+    const newBooking = await tx.booking.create({
+      data: {
+        userId: input.userId,
+        tierId: input.tierId,
+        eventId: input.eventId,
+        quantity: input.quantity,
+        status: BookingStatus.PENDING,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      },
+    });
+
+    return newBooking;
+  }, { isolationLevel: 'Serializable' });
+
+  if (app.redis && typeof app.redis.set === 'function') {
+    await app.redis.set(`hold:${booking.id}`, '1', 'EX', 600).catch(() => {});
+  }
+
+  return {
+    id: booking.id,
+    status: booking.status,
+    expiresAt: booking.expiresAt,
+    quantity: booking.quantity,
+    tierId: booking.tierId,
+    eventId: booking.eventId,
+  };
 }
 
-export async function getBooking(_app: FastifyInstance, _id: string): Promise<unknown> {
-  // TODO: implement
-  throw new Error('Not implemented');
+export async function getBooking(
+  app: FastifyInstance,
+  id: string,
+  userId: string,
+  isAdmin: boolean = false
+): Promise<unknown> {
+  const booking = await app.prisma.booking.findUnique({
+    where: { id },
+    include: { tickets: true },
+  });
+
+  if (!booking || (!isAdmin && booking.userId !== userId)) {
+    const err = Object.assign(new Error('Booking not found'), { statusCode: 404 });
+    throw err;
+  }
+
+  if (booking.status === BookingStatus.PAID) {
+    return booking;
+  }
+
+  return { ...booking, tickets: [] };
+}
+
+export async function simulatePayment(
+  app: FastifyInstance,
+  bookingId: string,
+  userId: string,
+  isAdmin: boolean = false
+): Promise<unknown> {
+  const existing = await app.prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { tier: true, tickets: true },
+  });
+
+  if (!existing) {
+    const err = Object.assign(new Error('Booking not found'), { statusCode: 404 });
+    throw err;
+  }
+
+  if (!isAdmin && existing.userId !== userId) {
+    const err = Object.assign(new Error('Forbidden: You do not own this booking'), { statusCode: 403 });
+    throw err;
+  }
+
+  if (existing.status === BookingStatus.PAID) {
+    return existing;
+  }
+
+  if (existing.status === BookingStatus.CANCELLED || existing.status === BookingStatus.REFUNDED) {
+    const err = Object.assign(new Error(`Cannot pay for a ${existing.status.toLowerCase()} booking`), { statusCode: 400 });
+    throw err;
+  }
+
+  const updatedBooking = await app.prisma.$transaction(async (tx) => {
+    // 1. Mark booking as PAID
+    const b = await tx.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: BookingStatus.PAID,
+        gatewayTransactionId: `sim_${Date.now()}_${bookingId.slice(0, 8)}`,
+      },
+      include: { tier: true },
+    });
+
+    // 2. Adjust tier capacity: increment soldCount, decrement reservedCount
+    await tx.ticketTier.update({
+      where: { id: b.tierId },
+      data: {
+        soldCount: { increment: b.quantity },
+        reservedCount: { decrement: b.quantity },
+      },
+    });
+
+    // 3. Mint HMAC-signed tickets atomically
+    await mintTickets(tx, b.id, b.quantity);
+
+    return await tx.booking.findUnique({
+      where: { id: bookingId },
+      include: { tickets: true, tier: true, event: true },
+    });
+  });
+
+  // 4. Clear Redis hold key
+  if (app.redis && typeof app.redis.del === 'function') {
+    await app.redis.del(`hold:${bookingId}`).catch(() => {});
+  }
+
+  return updatedBooking;
 }

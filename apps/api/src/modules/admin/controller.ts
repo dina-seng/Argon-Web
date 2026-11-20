@@ -19,8 +19,8 @@ import type {
   ToggleUserSuspensionParams,
   ToggleUserSuspensionBody,
   GetPlatformOverviewQuery,
-} from './schema';
-import * as adminService from './service';
+} from './schema.js';
+import * as adminService from './service.js';
 
 export async function getPlatformOverviewController(
   req: FastifyRequest<{ Querystring: GetPlatformOverviewQuery }>,

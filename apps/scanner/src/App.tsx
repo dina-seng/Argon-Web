@@ -1,8 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { CameraViewfinder } from './features/scan/CameraViewfinder';
+import { ScanResultScreen } from './features/scan/ScanResultScreen';
+import RosterPage from './features/roster/RosterPage';
 
 /**
  * Scanner App – staff gate PWA.
- * TODO: Add auth guard; redirect to /login if no valid staff token.
  */
 
 const PlaceholderPage = ({ name }: { name: string }) => (
@@ -18,10 +20,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<PlaceholderPage name="Camera Viewfinder" />} />
+        <Route path="/" element={<CameraViewfinder />} />
         <Route path="/login" element={<PlaceholderPage name="Staff Login" />} />
-        <Route path="/scan/result" element={<PlaceholderPage name="Scan Result" />} />
-        <Route path="/roster" element={<PlaceholderPage name="Offline Roster" />} />
+        <Route path="/scan/result" element={<ScanResultScreen outcome="INVALID" />} />
+        <Route path="/roster" element={<RosterPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

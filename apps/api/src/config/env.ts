@@ -24,6 +24,7 @@ const envSchema = z.object({
   QR_HMAC_SECRET: z.string().min(32).default(process.env['QR_SIGNING_SECRET'] ?? 'argon_qr_signing_secret_min_32_chars_dev_only'),
   PAYMENT_GATEWAY_BASE_URL: z.string().default('https://payment-sandbox.example.com'),
   PAYMENT_WEBHOOK_SECRET: z.string().min(16).default('argon_webhook_secret_dev'),
+  PAYMENT_GATEWAY_SECRET: z.string().min(16).default('argon_gateway_secret_dev_placeholder'),
 });
 
 const parsed = envSchema.safeParse(process.env);

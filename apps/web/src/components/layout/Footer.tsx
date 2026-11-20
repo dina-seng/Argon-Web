@@ -1,26 +1,11 @@
-import { Link } from 'react-router-dom';
-
-export function Footer() {
+/** Public footer. `compact` drops the copyright, as on the event detail design. */
+export function Footer({ compact = false, className = 'bg-ink' }: { compact?: boolean; className?: string }) {
   return (
-    <footer className="border-t border-white/[0.06] bg-[#090a10] py-8 text-xs text-zinc-500 mt-auto">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div>
-          <span>argon / Local energy. Quiet interface.</span>
-        </div>
-
-        <div>
-          <span>Cambodia · USD · All times ICT (UTC+7)</span>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <Link to="#" className="hover:text-zinc-300 transition-colors">
-            Help &amp; support
-          </Link>
-          <span className="text-zinc-700">·</span>
-          <Link to="/organizer/scanner" className="hover:text-purple-400 transition-colors">
-            Organizer gate scanner
-          </Link>
-        </div>
+    <footer className={className}>
+      <div className={`ag-wrap flex ${compact ? 'min-h-[72px]' : 'min-h-[80px]'} flex-wrap items-center justify-between gap-x-6 gap-y-2 py-4 text-[12.5px] font-extrabold uppercase tracking-[0.08em] text-peach-soft`}>
+        <span className="tracking-[0.3em] text-white">ARGON</span>
+        <span>CAMBODIA · USD · ALL TIMES ICT (UTC+7)</span>
+        {!compact && <span>© 2026 ARGON</span>}
       </div>
     </footer>
   );

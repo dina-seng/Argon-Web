@@ -46,18 +46,23 @@ export async function buildApp() {
   // ── Health check ──────────────────────────────────────────────────────────
   app.get('/health', async () => ({ status: 'ok', version: '0.1.0' }));
 
-  // ── Routes ───────────────────────────────────────────────────────────────
-  await app.register(authRoutes, { prefix: '/auth' });
-  await app.register(eventsRoutes, { prefix: '/events' });
-  await app.register(bookingsRoutes, { prefix: '/bookings' });
-  await app.register(paymentsRoutes, { prefix: '/payments' });
-  await app.register(ticketsRoutes, { prefix: '/tickets' });
-  await app.register(checkinRoutes, { prefix: '/checkin' });
-  await app.register(checkinRoutes, { prefix: '/api/v1/checkin' });
-  await app.register(organizerRoutes, { prefix: '/organizer' });
-  await app.register(organizerRoutes, { prefix: '/api/v1/organizer' });
-  await app.register(auditRoutes, { prefix: '/audit' });
-  await app.register(adminRoutes, { prefix: '/api/v1/admin' });
+  // ── Routes (Dual-registered for standard and /api/v1 prefixes) ───────────
+  const routeModules = [
+    { plugin: authRoutes, prefix: '/auth' },
+    { plugin: eventsRoutes, prefix: '/events' },
+    { plugin: bookingsRoutes, prefix: '/bookings' },
+    { plugin: paymentsRoutes, prefix: '/payments' },
+    { plugin: ticketsRoutes, prefix: '/tickets' },
+    { plugin: checkinRoutes, prefix: '/checkin' },
+    { plugin: organizerRoutes, prefix: '/organizer' },
+    { plugin: auditRoutes, prefix: '/audit' },
+    { plugin: adminRoutes, prefix: '/admin' },
+  ];
+
+  for (const { plugin, prefix } of routeModules) {
+    await app.register(plugin, { prefix });
+    await app.register(plugin, { prefix: `/api/v1${prefix}` });
+  }
 
   return app;
 }

@@ -27,14 +27,6 @@ export class HttpError extends Error {
   }
 }
 
-let defaultPrisma: PrismaClient | null = null;
-function getPrismaClient(): PrismaClient {
-  if (!defaultPrisma) {
-    defaultPrisma = new PrismaClient();
-  }
-  return defaultPrisma;
-}
-
 export interface TierMetric {
   id: string;
   name: string;
@@ -90,7 +82,7 @@ export async function getEventMetrics(
   userId: string,
   eventId: string,
   isAdmin: boolean,
-  prisma: PrismaClient = getPrismaClient()
+  prisma: PrismaClient
 ): Promise<EventMetricsResponse> {
   const event = await prisma.event.findUnique({
     where: { id: eventId },
@@ -164,7 +156,7 @@ export async function updateTierQuota(
   tierId: string,
   data: { capacity?: number | undefined },
   isAdmin: boolean,
-  prisma: PrismaClient = getPrismaClient()
+  prisma: PrismaClient
 ) {
   const event = await prisma.event.findUnique({
     where: { id: eventId },
@@ -220,7 +212,7 @@ export async function getAttendees(
   eventId: string,
   query: { page?: number | undefined; limit?: number | undefined; search?: string | undefined },
   isAdmin: boolean,
-  prisma: PrismaClient = getPrismaClient()
+  prisma: PrismaClient
 ): Promise<PaginatedAttendeesResponse> {
   const event = await prisma.event.findUnique({
     where: { id: eventId },
@@ -360,11 +352,11 @@ export interface OrganizerEventItem {
  * Includes tiers with capacity, price, currency, soldCount, and checkedInCount.
  */
 export async function listOrganizerEvents(
-  app: FastifyInstance | { prisma: PrismaClient },
+  app: FastifyInstance | { prisma: PrismaClient } | PrismaClient,
   organizerId: string,
   isAdmin = false
 ): Promise<OrganizerEventItem[]> {
-  const prisma = 'prisma' in app ? app.prisma : getPrismaClient();
+  const prisma = 'prisma' in app ? app.prisma : (app as unknown as PrismaClient);
 
   const where: Prisma.EventWhereInput = isAdmin ? {} : { organizerId };
 
@@ -431,4 +423,69 @@ export async function listOrganizerEvents(
       totalCheckedIn,
     };
   });
+}
+
+export async function getEventBookings(
+  userId: string,
+  eventId: string,
+  isAdmin: boolean,
+  prisma: PrismaClient
+) {
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+  });
+
+  if (!event) {
+    throw new HttpError(404, 'Event not found', 'Not Found');
+  }
+
+  if (!isAdmin && event.organizerId !== userId) {
+    throw new HttpError(403, 'You do not have access to this event', 'Forbidden');
+  }
+
+  const bookings = await prisma.booking.findMany({
+    where: { eventId },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      tier: {
+        select: {
+          id: true,
+          name: true,
+          price: true,
+        },
+      },
+      tickets: {
+        select: {
+          id: true,
+          status: true,
+          checkedInAt: true,
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return {
+    eventId,
+    total: bookings.length,
+    bookings: bookings.map((b) => ({
+      id: b.id,
+      orderNumber: b.paymentReference ?? b.id.slice(0, 8).toUpperCase(),
+      status: b.status,
+      quantity: b.quantity,
+      createdAt: b.createdAt,
+      user: b.user,
+      tier: {
+        ...b.tier,
+        price: Number(b.tier.price),
+      },
+      tickets: b.tickets,
+    })),
+  };
 }

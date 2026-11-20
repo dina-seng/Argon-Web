@@ -16,10 +16,69 @@
   }
 }
 
+@layer components {
+  /* 1240px content column of the public designs (100px gutters at 1440). */
+  .ag-wrap {
+    width: min(1240px, calc(100% - 32px));
+    margin-inline: auto;
+  }
+
+  /* The designs set all text in Inter's display cut, including small copy. */
+  .ag-wrap,
+  .ag-type {
+    font-variation-settings: 'opsz' 32;
+  }
+
+  /* Tight poster headline. */
+  .ag-display {
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.035em;
+    line-height: 0.86;
+  }
+
+  /* Tracked uppercase field and section label. */
+  .ag-label {
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* Hollow poster numerals. */
+  .ag-outline {
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.05em;
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .ag-input {
+    display: block;
+    width: 100%;
+    background: #1e0707;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #fff;
+    padding-inline: 16px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .ag-input::placeholder {
+    color: rgba(255, 255, 255, 0.45);
+  }
+  .ag-input:focus {
+    border-color: #fff;
+  }
+  .ag-input[aria-invalid='true'] {
+    border-color: #f87171;
+  }
+}
+
 @layer utilities {
   .glass {
     @apply bg-surface-card/80 backdrop-blur-md border border-line;
   }
 }
-
-

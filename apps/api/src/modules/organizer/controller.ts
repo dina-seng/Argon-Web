@@ -4,6 +4,7 @@ import {
   getEventMetrics,
   updateTierQuota,
   getAttendees,
+  getEventBookings,
   listOrganizerEvents,
 } from './service.js';
 import { getOrganizerEvent } from '../events/service.js';
@@ -69,6 +70,23 @@ export async function getAttendeesController(
     req.server.prisma
   );
   reply.send(attendees);
+}
+
+export async function getEventBookingsController(
+  req: FastifyRequest,
+  reply: FastifyReply
+): Promise<void> {
+  const { eventId } = req.params as { eventId: string };
+  const userId = req.user.sub;
+  const isAdmin = req.user.role === 'ADMIN';
+
+  const data = await getEventBookings(
+    userId,
+    eventId,
+    isAdmin,
+    req.server.prisma
+  );
+  reply.send(data);
 }
 
 export async function issueStaffController(

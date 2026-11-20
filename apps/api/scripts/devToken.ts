@@ -9,7 +9,7 @@ import Fastify from 'fastify';
 import fastifyJwt from '@fastify/jwt';
 import { PrismaClient } from '@prisma/client';
 import type { JwtPayload, Role } from '@argon/shared';
-import { env } from '../src/config/env';
+import { env } from '../src/config/env.js';
 
 if (env.NODE_ENV === 'production') {
   console.error('dev:token is for local development only.');

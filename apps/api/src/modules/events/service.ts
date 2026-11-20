@@ -182,7 +182,7 @@ export async function updateEvent(
       const updated = await tx.$executeRaw`
         UPDATE "TicketTier"
         SET "capacity" = ${capacity}, "updatedAt" = NOW()
-        WHERE "id" = ${tier.id} AND "soldCount" + "reservedCount" <= ${capacity}`;
+        WHERE "id" = ${tier.id}::uuid AND "soldCount" + "reservedCount" <= ${capacity}`;
       if (updated === 0) {
         throw conflict('Capacity is lower than the number of tickets already sold or reserved');
       }
