@@ -28,7 +28,7 @@ const PROTECTED_ROUTES = [
 
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
 
-describe('ARGON-23 – JWT issuance and protected-route enforcement', () => {
+describe('JWT issuance and protected-route enforcement', () => {
   let app: FastifyInstance;
 
   const email = `jwt-${randomUUID()}@argon.kh`;

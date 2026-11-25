@@ -77,7 +77,7 @@ const ADMIN_ROUTES: RouteCase[] = [
   { method: 'POST', url: `/api/v1/admin/bookings/${BOOKING_ID}/force-confirm` },
 ];
 
-describe('ARGON-24 – role-based route access', () => {
+describe('role-based route access', () => {
   let app: FastifyInstance;
 
   const customerId = randomUUID();
