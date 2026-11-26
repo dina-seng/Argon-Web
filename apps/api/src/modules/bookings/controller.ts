@@ -2,7 +2,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { CreateBookingBody } from './schema.js';
 import { createBookingBodySchema } from './schema.js';
-import { createBooking, getBooking } from './service.js';
+import { createBooking, getBooking, simulatePayment } from './service.js';
 
 export async function createBookingController(req: FastifyRequest<{ Body: CreateBookingBody }>, reply: FastifyReply): Promise<void> {
   const body = createBookingBodySchema.parse(req.body);
@@ -22,8 +22,19 @@ export async function createBookingController(req: FastifyRequest<{ Body: Create
   }
 }
 
-export async function getBookingController(req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply): Promise<void> {
-  const id = req.params.id;
-  const booking = await getBooking(req.server, id, req.user.sub);
+export async function getBookingController(req: FastifyRequest, reply: FastifyReply): Promise<void> {
+  const { id } = req.params as { id: string };
+  const isAdmin = req.user.role === 'ADMIN';
+  const booking = await getBooking(req.server, id, req.user.sub, isAdmin);
+  reply.send(booking);
+}
+
+export async function simulatePaymentController(
+  req: FastifyRequest,
+  reply: FastifyReply
+): Promise<void> {
+  const { id } = req.params as { id: string };
+  const isAdmin = req.user.role === 'ADMIN';
+  const booking = await simulatePayment(req.server, id, req.user.sub, isAdmin);
   reply.send(booking);
 }

@@ -62,3 +62,28 @@ export async function logoutController(
   });
   _reply.status(204).send();
 }
+
+export async function meController(req: FastifyRequest, reply: FastifyReply): Promise<void> {
+  const userId = req.user?.sub;
+  if (!userId) {
+    return reply.status(401).send({ error: 'Unauthorized', message: 'User not logged in' });
+  }
+
+  const user = await req.server.prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      isSuspended: true,
+      createdAt: true,
+    },
+  });
+
+  if (!user) {
+    return reply.status(404).send({ error: 'Not Found', message: 'User not found' });
+  }
+
+  reply.send(user);
+}

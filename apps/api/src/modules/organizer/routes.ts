@@ -5,6 +5,7 @@ import {
   getMetricsController,
   updateTierQuotaController,
   getAttendeesController,
+  getEventBookingsController,
   issueStaffController,
   listOrganizerEventsController,
   getMyEventController,
@@ -72,6 +73,17 @@ export async function organizerRoutes(app: FastifyInstance) {
       preHandler: organizerAuth,
     },
     getAttendeesController
+  );
+
+  app.get(
+    '/events/:eventId/bookings',
+    {
+      schema: {
+        params: eventIdParamSchema,
+      },
+      preHandler: organizerAuth,
+    },
+    getEventBookingsController
   );
 
   app.post(

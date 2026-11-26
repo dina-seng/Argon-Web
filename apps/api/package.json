@@ -11,12 +11,16 @@
     "start": "node dist/server.js",
     "start:prod": "prisma migrate deploy && node dist/server.js",
     "lint": "eslint src --ext .ts",
+    "pretypecheck": "prisma generate",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
     "dev:token": "tsx scripts/devToken.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@argon/shared": "*",
