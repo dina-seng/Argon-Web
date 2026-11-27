@@ -82,7 +82,23 @@ export async function getBooking(
 ) {
   const booking = await app.prisma.booking.findUnique({
     where: { id },
-    include: { tickets: true },
+    select: {
+      id: true,
+      userId: true,
+      eventId: true,
+      tierId: true,
+      status: true,
+      quantity: true,
+      expiresAt: true,
+      paymentReference: true,
+      paymentAmount: true,
+      paymentExpiresAt: true,
+      paymentMethod: true,
+      gatewayTransactionId: true,
+      createdAt: true,
+      updatedAt: true,
+      tickets: true,
+    },
   });
 
   if (!booking || (!isAdmin && booking.userId !== userId)) {
@@ -90,8 +106,7 @@ export async function getBooking(
     throw err;
   }
 
-  const { paymentQrImage: _paymentQrImage, ...details } = booking;
-  return { ...details, tickets: booking.status === BookingStatus.PAID ? booking.tickets : [] };
+  return { ...booking, tickets: booking.status === BookingStatus.PAID ? booking.tickets : [] };
 }
 
 export async function simulatePayment(
