@@ -73,6 +73,10 @@ model Booking {
   quantity             Int
   expiresAt            DateTime?
   paymentReference     String?       @unique
+  paymentAmount        Decimal?      @db.Decimal(14, 2)
+  paymentQrImage       String?
+  paymentExpiresAt     DateTime?
+  paymentMethod        PaymentMethod?
   gatewayTransactionId String?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
@@ -143,6 +147,11 @@ enum EventCategory {
   ARTS
   TECH
   OTHER
+}
+
+enum PaymentMethod {
+  KHQR
+  CARD
 }
 
 enum BookingStatus {

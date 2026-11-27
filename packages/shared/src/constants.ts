@@ -7,6 +7,8 @@
 /** Duration of a seat hold in seconds (10 minutes). Booking expires after this TTL. */
 export const HOLD_TTL_SECONDS = 600;
 
+export const SERVICE_FEE = 2;
+
 /** Target latency for gate scan endpoint in milliseconds (Flow C). */
 export const GATE_SCAN_TARGET_MS = 1000;
 

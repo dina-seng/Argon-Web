@@ -30,9 +30,11 @@ All protected endpoints require a JWT Bearer token in the `Authorization` header
 ### Bookings
 - `POST /bookings` – Create booking / reserve seats _(CUSTOMER)_
 - `GET /bookings/:id` – Booking detail
+- `POST /bookings/:id/payment` – Start or resume the booking's payment. Send `method` as `KHQR` (the default) or `CARD`. Returns a USD `amount`, `expiresAt`, and either `qrImage` or the hosted checkout form's `action` and signed `fields`. The booking keeps its selected method once a payment starts. _(booking owner)_
+- `GET /bookings/:id?checkPayment=true` – Refresh PayWay status before returning booking detail
 
 ### Payments
-- `POST /payments/webhook` – Payment gateway callback _(signed)_
+- `POST /payments/webhook` – PayWay callback. The API validates the signature when supplied and looks up `tran_id` directly with PayWay. Ticket issuance requires verified approval, currency, and amount.
 
 ### Tickets
 - `GET /tickets/my` – My tickets _(CUSTOMER)_

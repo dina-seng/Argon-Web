@@ -1,4 +1,3 @@
-/** modules/payments/schema.ts */
-import { z } from 'zod';
-export const webhookBodySchema = z.object({ event: z.string(), bookingReference: z.string(), gatewayTransactionId: z.string(), amount: z.number() });
-export type WebhookBody = z.infer<typeof webhookBodySchema>;
+﻿import { z } from 'zod';
+
+export const webhookBodySchema = z.object({ tran_id: z.string().regex(/^[a-f0-9]{20}$/) }).passthrough();

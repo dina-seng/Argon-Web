@@ -65,7 +65,7 @@ export const clockTime = (iso: string) => {
 };
 
 /** Flat per-order fee from the designs. The API doesn't record it yet. */
-export const SERVICE_FEE = 2;
+export { SERVICE_FEE } from '@argon/shared';
 
 export const money = (value: number) => `$${value.toFixed(2)}`;
 /** "Free", "$15", or "$15.50" when the price has cents. */

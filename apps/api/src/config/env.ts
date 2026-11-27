@@ -22,9 +22,11 @@ const envSchema = z.object({
   SCANNER_URL: z.string().default('http://localhost:5174'),
   QR_SIGNING_SECRET: z.string().min(32).default(process.env['QR_HMAC_SECRET'] ?? 'argon_qr_signing_secret_min_32_chars_dev_only'),
   QR_HMAC_SECRET: z.string().min(32).default(process.env['QR_SIGNING_SECRET'] ?? 'argon_qr_signing_secret_min_32_chars_dev_only'),
-  PAYMENT_GATEWAY_BASE_URL: z.string().default('https://payment-sandbox.example.com'),
-  PAYMENT_WEBHOOK_SECRET: z.string().min(16).default('argon_webhook_secret_dev'),
-  PAYMENT_GATEWAY_SECRET: z.string().min(16).default('argon_gateway_secret_dev_placeholder'),
+  PAYMENT_GATEWAY_BASE_URL: z.string().url().refine((url) => url.startsWith('https://')).default('https://checkout-sandbox.payway.com.kh'),
+  PAYMENT_GATEWAY_SECRET: z.string().min(1).optional(),
+  PAYWAY_MERCHANT_ID: z.string().min(1).optional(),
+  PAYWAY_CALLBACK_URL: z.string().url().refine((url) => url.startsWith('https://')).optional(),
+  ALLOW_PAYMENT_SIMULATION: z.enum(['true', 'false']).default('false'),
 });
 
 const parsed = envSchema.safeParse(process.env);
