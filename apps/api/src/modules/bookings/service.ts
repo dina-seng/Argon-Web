@@ -8,7 +8,7 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import { BookingStatus } from '@argon/shared';
+import { BookingStatus, HOLD_TTL_SECONDS, SERVICE_FEE } from '@argon/shared';
 import { mintTickets } from '../tickets/service.js';
 
 export interface CreateBookingInput {
@@ -21,7 +21,7 @@ export interface CreateBookingInput {
 export async function createBooking(app: FastifyInstance, input: CreateBookingInput): Promise<unknown> {
   const booking = await app.prisma.$transaction(async (tx) => {
     const tier = await tx.ticketTier.findUnique({ where: { id: input.tierId } });
-    if (!tier) {
+    if (!tier || tier.eventId !== input.eventId) {
       const err = Object.assign(new Error('Ticket tier not found'), { statusCode: 404 });
       throw err;
     }
@@ -35,7 +35,7 @@ export async function createBooking(app: FastifyInstance, input: CreateBookingIn
     const result = await tx.$executeRaw`
       UPDATE "TicketTier"
       SET "reservedCount" = "reservedCount" + ${input.quantity}
-      WHERE id = ${input.tierId}::uuid
+      WHERE id = ${input.tierId}
         AND capacity - "soldCount" - "reservedCount" >= ${input.quantity}
     `;
 
@@ -51,7 +51,8 @@ export async function createBooking(app: FastifyInstance, input: CreateBookingIn
         eventId: input.eventId,
         quantity: input.quantity,
         status: BookingStatus.PENDING,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        expiresAt: new Date(Date.now() + HOLD_TTL_SECONDS * 1000),
+        paymentAmount: tier.price.mul(input.quantity).add(SERVICE_FEE),
       },
     });
 
@@ -59,7 +60,7 @@ export async function createBooking(app: FastifyInstance, input: CreateBookingIn
   }, { isolationLevel: 'Serializable' });
 
   if (app.redis && typeof app.redis.set === 'function') {
-    await app.redis.set(`hold:${booking.id}`, '1', 'EX', 600).catch(() => {});
+    await app.redis.set(`hold:${booking.id}`, '1', 'EX', HOLD_TTL_SECONDS).catch(() => {});
   }
 
   return {
@@ -69,6 +70,7 @@ export async function createBooking(app: FastifyInstance, input: CreateBookingIn
     quantity: booking.quantity,
     tierId: booking.tierId,
     eventId: booking.eventId,
+    paymentAmount: booking.paymentAmount,
   };
 }
 
@@ -77,10 +79,26 @@ export async function getBooking(
   id: string,
   userId: string,
   isAdmin: boolean = false
-): Promise<unknown> {
+) {
   const booking = await app.prisma.booking.findUnique({
     where: { id },
-    include: { tickets: true },
+    select: {
+      id: true,
+      userId: true,
+      eventId: true,
+      tierId: true,
+      status: true,
+      quantity: true,
+      expiresAt: true,
+      paymentReference: true,
+      paymentAmount: true,
+      paymentExpiresAt: true,
+      paymentMethod: true,
+      gatewayTransactionId: true,
+      createdAt: true,
+      updatedAt: true,
+      tickets: true,
+    },
   });
 
   if (!booking || (!isAdmin && booking.userId !== userId)) {
@@ -88,11 +106,7 @@ export async function getBooking(
     throw err;
   }
 
-  if (booking.status === BookingStatus.PAID) {
-    return booking;
-  }
-
-  return { ...booking, tickets: [] };
+  return { ...booking, tickets: booking.status === BookingStatus.PAID ? booking.tickets : [] };
 }
 
 export async function simulatePayment(
@@ -120,33 +134,31 @@ export async function simulatePayment(
     return existing;
   }
 
-  if (existing.status === BookingStatus.CANCELLED || existing.status === BookingStatus.REFUNDED) {
-    const err = Object.assign(new Error(`Cannot pay for a ${existing.status.toLowerCase()} booking`), { statusCode: 400 });
-    throw err;
-  }
-
   const updatedBooking = await app.prisma.$transaction(async (tx) => {
-    // 1. Mark booking as PAID
-    const b = await tx.booking.update({
-      where: { id: bookingId },
+    const { count } = await tx.booking.updateMany({
+      where: { id: bookingId, status: BookingStatus.PENDING, expiresAt: { gt: new Date() }, paymentReference: null },
       data: {
         status: BookingStatus.PAID,
         gatewayTransactionId: `sim_${Date.now()}_${bookingId.slice(0, 8)}`,
       },
-      include: { tier: true },
     });
 
-    // 2. Adjust tier capacity: increment soldCount, decrement reservedCount
+    if (count === 0) {
+      const current = await tx.booking.findUnique({ where: { id: bookingId }, include: { tickets: true } });
+      if (current?.status === BookingStatus.PAID) return current;
+      throw Object.assign(new Error('This booking cannot be simulated'), { statusCode: 409 });
+    }
+
     await tx.ticketTier.update({
-      where: { id: b.tierId },
+      where: { id: existing.tierId },
       data: {
-        soldCount: { increment: b.quantity },
-        reservedCount: { decrement: b.quantity },
+        soldCount: { increment: existing.quantity },
+        reservedCount: { decrement: existing.quantity },
       },
     });
 
     // 3. Mint HMAC-signed tickets atomically
-    await mintTickets(tx, b.id, b.quantity);
+    await mintTickets(tx, existing.id, existing.quantity);
 
     return await tx.booking.findUnique({
       where: { id: bookingId },

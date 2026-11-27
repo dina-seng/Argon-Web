@@ -71,6 +71,8 @@ export async function getMyTickets(app: FastifyInstance, userId: string): Promis
     eventVenue: t.booking.event.venue,
     eventStartsAt: t.booking.event.startsAt,
     tierName: t.booking.tier.name,
+    paymentAmount: t.booking.paymentAmount == null ? null : Number(t.booking.paymentAmount),
+    paymentMethod: t.booking.paymentMethod,
     status: t.status,
     qrToken: t.qrToken,
     checkedInAt: t.checkedInAt,

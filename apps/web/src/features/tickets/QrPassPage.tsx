@@ -1,7 +1,6 @@
 /**
  * features/tickets/QrPassPage.tsx
- * Matches design 08-QR-pass. Prices come from the event's tiers, because the
- * tickets endpoint doesn't return them.
+ * Matches design 08-QR-pass. Older tickets fall back to their event's tier price.
  */
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
@@ -20,6 +19,8 @@ interface ApiTicket {
   eventVenue: string;
   eventStartsAt: string | null;
   tierName: string;
+  paymentAmount?: number | null;
+  paymentMethod?: 'KHQR' | 'CARD' | null;
   status: TicketStatus;
   qrToken: string;
   checkedInAt: string | null;
@@ -60,10 +61,11 @@ export default function QrPassPage() {
   const ticket = tickets.find((t) => t.id === id);
   const eventId = ticket?.eventId;
   const tierName = ticket?.tierName;
+  const paymentAmount = ticket?.paymentAmount;
 
   useEffect(() => {
     setPrice(null);
-    if (!eventId) return;
+    if (paymentAmount != null || !eventId) return;
     let cancelled = false;
     api.get<PublicEventDetail>(`/events/${eventId}`)
       .then((event) => {
@@ -71,7 +73,7 @@ export default function QrPassPage() {
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [eventId, tierName]);
+  }, [eventId, tierName, paymentAmount]);
 
   if (loading || !ticket) {
     return (
@@ -94,7 +96,7 @@ export default function QrPassPage() {
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
   const position = order.findIndex((t) => t.id === ticket.id) + 1;
   const next = order[position];
-  const subtotal = price === null ? null : price * order.length;
+  const subtotal = paymentAmount != null ? paymentAmount - SERVICE_FEE : price === null ? null : price * order.length;
   const checkedIn = ticket.status === TicketStatus.CHECKED_IN;
   const revoked = ticket.status === TicketStatus.REVOKED;
 
@@ -162,7 +164,9 @@ export default function QrPassPage() {
               <span className="font-extrabold tracking-[-0.02em] text-white">{money(SERVICE_FEE)}</span>
             </div>
             <div className="mt-[10px] flex items-end justify-between">
-              <span className="text-[14px] font-extrabold uppercase tracking-[0.05em]">Paid · KHQR</span>
+              <span className="text-[14px] font-extrabold uppercase tracking-[0.05em]">
+                {ticket.paymentMethod === 'CARD' ? 'Paid · Card' : ticket.paymentMethod === 'KHQR' ? 'Paid · KHQR' : 'Paid'}
+              </span>
               <span className="text-[34px] font-black leading-[38px] tracking-[-0.04em]">{subtotal === null ? '—' : money(subtotal + SERVICE_FEE)}</span>
             </div>
             <p className="mt-[8px] font-code text-[13px] leading-[18px] text-peach-soft">Ref {ticket.orderNumber} · {paidOn}</p>

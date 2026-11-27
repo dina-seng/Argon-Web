@@ -1,33 +1,15 @@
-/** modules/payments/controller.ts */
-import type { FastifyRequest, FastifyReply } from 'fastify';
-import { handlePaymentWebhook, type WebhookPayload } from './service.js';
+import type { FastifyRequest } from 'fastify';
+import { webhookBodySchema } from './schema.js';
+import { reconcilePayment } from './service.js';
+import { paymentError, verifyCallback } from './payway.js';
 
-export async function webhookController(req: FastifyRequest, reply: FastifyReply): Promise<void> {
-  const payload = req.body as WebhookPayload;
-  const signature = req.headers['x-gateway-signature'] as string;
-  const rawBody = (req as any).rawBody as Buffer;
-
-  if (!rawBody || !signature) {
-    return reply.status(400).send({
-      statusCode: 400,
-      error: 'Bad Request',
-      message: 'Missing webhook signature or payload',
-    });
+export async function webhookController(req: FastifyRequest) {
+  const body = webhookBodySchema.parse(req.body);
+  const signature = req.headers['x-payway-hmac-sha512'];
+  if (signature !== undefined && (typeof signature !== 'string' || !verifyCallback(body, signature))) {
+    throw paymentError(401, 'Invalid PayWay callback signature');
   }
-
-  try {
-    await handlePaymentWebhook(req.server, payload, rawBody, signature);
-    reply.send({ received: true });
-  } catch (err: any) {
-    if (err?.statusCode === 401) {
-      return reply.status(401).send({ statusCode: 401, error: 'Unauthorized', message: err.message });
-    }
-    if (err?.statusCode === 404) {
-      return reply.status(404).send({ statusCode: 404, error: 'Not Found', message: err.message });
-    }
-    if (err?.statusCode === 409) {
-      return reply.status(409).send({ statusCode: 409, error: 'Conflict', message: err.message });
-    }
-    throw err;
-  }
+  // Even a signed callback only triggers a server-to-server lookup.
+  await reconcilePayment(req.server, body.tran_id);
+  return { received: true };
 }

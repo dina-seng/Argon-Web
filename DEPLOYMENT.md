@@ -68,9 +68,14 @@ Configure these variables in your hosting provider's dashboard for each project.
 | `QR_HMAC_SECRET` | No | Same as `QR_SIGNING_SECRET` | Backward-compatibility alias. |
 | `CLIENT_URL` | **Yes** | `https://argon-web.vercel.app` | Whitelisted origin for web CORS requests. |
 | `SCANNER_URL` | **Yes** | `https://argon-scanner.vercel.app` | Whitelisted origin for scanner CORS requests. |
-| `PAYMENT_GATEWAY_BASE_URL` | **Yes** | `https://api.payment-gateway.example.com` | Upstream payment processor URL. |
-| `PAYMENT_WEBHOOK_SECRET` | **Yes** | 32+ character random secret string | Verifies HMAC signatures on inbound payment callbacks (`/payments/webhook`). |
-| `PAYMENT_GATEWAY_SECRET` | No | Gateway API merchant key | Communicates with the payment gateway client. |
+| `PAYMENT_GATEWAY_BASE_URL` | No | `https://checkout-sandbox.payway.com.kh` | Defaults to PayWay sandbox. For live payments use the production URL supplied by PayWay. |
+| `PAYWAY_MERCHANT_ID` | For KHQR | PayWay merchant ID | Use credentials for the same PayWay environment as the base URL. |
+| `PAYMENT_GATEWAY_SECRET` | For KHQR | PayWay API key | Signs requests from the API server to PayWay. |
+| `PAYWAY_CALLBACK_URL` | For KHQR | `https://your-api.example.com/payments/webhook` | Public HTTPS endpoint that receives PayWay callbacks. |
+
+Apply the Prisma migrations before enabling payments. Enable USD KHQR and international card acceptance on the PayWay merchant profile. Register the API origin or egress IP and callback URL with PayWay as required. Verify a sandbox payment for each method, including the callback and ticket issuance, before switching credentials. Keep hold reconciliation scheduled on serverless deployments. Review approved PayWay payments logged for manual reconciliation against the merchant portal.
+
+For local development without a PayWay account, set `ALLOW_PAYMENT_SIMULATION=true` on the API and `VITE_ALLOW_PAYMENT_SIMULATION=true` on the web app. The simulator requires a non-production API with PayWay unconfigured.
 
 > [!CAUTION]
 > Never put `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, or `QR_SIGNING_SECRET` in frontend (`apps/web` or `apps/scanner`) environment settings. Frontend bundles are public.
