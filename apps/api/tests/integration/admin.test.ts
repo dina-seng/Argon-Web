@@ -158,10 +158,10 @@ describe('Admin Governance Module (/api/v1/admin)', () => {
   describe('GET /api/v1/admin/metrics/overview', () => {
     it('returns 200 OK with aggregated platform metrics for ADMIN', async () => {
       vi.spyOn(app.prisma.booking, 'count').mockResolvedValueOnce(42 as any);
-      vi.spyOn(app.prisma.booking, 'findMany').mockResolvedValueOnce([
-        { quantity: 2, tier: { price: 25.0 } },
-        { quantity: 1, tier: { price: 50.0 } },
-      ] as any);
+      vi.spyOn(app.prisma, '$queryRaw').mockResolvedValueOnce([
+        { quantity: 2, price: 25.0, createdAt: new Date() },
+        { quantity: 1, price: 50.0, createdAt: new Date() },
+      ]);
       vi.spyOn(app.prisma.booking, 'aggregate').mockResolvedValueOnce({
         _sum: { quantity: 120 },
       } as any);
@@ -202,12 +202,13 @@ describe('Admin Governance Module (/api/v1/admin)', () => {
 
     it('returns DOWN for database status when database ping throws error', async () => {
       vi.spyOn(app.prisma.booking, 'count').mockResolvedValueOnce(0 as any);
-      vi.spyOn(app.prisma.booking, 'findMany').mockResolvedValueOnce([] as any);
       vi.spyOn(app.prisma.booking, 'aggregate').mockResolvedValueOnce({ _sum: { quantity: 0 } } as any);
       vi.spyOn(app.prisma.event, 'count').mockResolvedValueOnce(0 as any);
       vi.spyOn(app.prisma.ticket, 'count').mockResolvedValueOnce(0 as any);
       vi.spyOn(app.prisma.user, 'groupBy').mockResolvedValueOnce([] as any);
-      vi.spyOn(app.prisma, '$queryRaw').mockRejectedValueOnce(new Error('Connection lost'));
+      vi.spyOn(app.prisma, '$queryRaw')
+        .mockResolvedValueOnce([])
+        .mockRejectedValueOnce(new Error('Connection lost'));
 
       const res = await app.inject({
         method: 'GET',

@@ -69,15 +69,13 @@ export async function getPlatformOverview(
     prisma.booking.count({
       where: { status: 'PAID' },
     }),
-    prisma.booking.findMany({
-      where: { status: 'PAID' },
-      select: {
-        quantity: true,
-        tier: {
-          select: { price: true },
-        },
-      },
-    }),
+    // Read bookings and tier prices in one PostgreSQL snapshot.
+    prisma.$queryRaw<Array<{ quantity: number; price: Prisma.Decimal | null; createdAt: Date }>>`
+      SELECT b.quantity, t.price, b."createdAt"
+      FROM "Booking" b
+      LEFT JOIN "TicketTier" t ON t.id = b."tierId"
+      WHERE b.status = 'PAID'
+    `,
     prisma.booking.aggregate({
       where: { status: 'PAID' },
       _sum: { quantity: true },
@@ -94,9 +92,9 @@ export async function getPlatformOverview(
     }),
   ]);
 
-  const grossRevenue = (paidBookings || []).reduce((sum, b) => {
-    return sum + Number(b?.tier?.price ?? 0) * (b?.quantity ?? 0);
-  }, 0);
+  const grossRevenue = paidBookings.reduce((sum, booking) => (
+    sum + Number(booking.price ?? 0) * booking.quantity
+  ), 0);
 
   const usersByRole: Record<Role, number> = {
     CUSTOMER: 0,
@@ -209,33 +207,12 @@ export async function getPlatformOverview(
     velocityMap[dateStr] = { revenue: 0, orders: 0 };
   }
 
-  try {
-    const recentPaidBookings = await prisma.booking.findMany({
-      where: {
-        status: 'PAID',
-        createdAt: { gte: cutoffDate },
-      },
-      select: {
-        createdAt: true,
-        quantity: true,
-        tier: {
-          select: { price: true },
-        },
-      },
-    });
-
-    if (Array.isArray(recentPaidBookings)) {
-      for (const b of recentPaidBookings) {
-        const dateStr = new Date(b.createdAt).toISOString().slice(0, 10);
-        if (velocityMap[dateStr]) {
-          const rev = Number(b.tier?.price ?? 0) * (b.quantity ?? 1);
-          velocityMap[dateStr].revenue += rev;
-          velocityMap[dateStr].orders += 1;
-        }
-      }
-    }
-  } catch {
-    // Graceful fallback
+  for (const booking of paidBookings) {
+    if (booking.createdAt < cutoffDate) continue;
+    const stats = velocityMap[booking.createdAt.toISOString().slice(0, 10)];
+    if (!stats) continue;
+    stats.revenue += Number(booking.price ?? 0) * booking.quantity;
+    stats.orders += 1;
   }
 
   const dailyVelocity = Object.entries(velocityMap).map(([date, stats]) => ({
